@@ -72,13 +72,15 @@
 <body id="post-index">
 
     <!--[if lt IE 9]><div class="upgrade"><strong><a href="http://whatbrowser.org/">Your browser is quite old!</strong> Why not upgrade to a different browser to better enjoy this site?</a></div><![endif]-->
-    <script src="/assets/js//backtoTop.js"></script>
+    <script src="/assets/js/scrollToTop.js"></script>
+    <!-- button to scroll to top of page wip -->
     <script>addBackToTop({
       diameter: 32,
       backgroundColor: 'rgb(51,51,51)',
       textColor: '#fff'
     })</script>
-    
+    <script src="/assets/js/progress.js"></script>
+    <div class="progress" id="progress"></div>
   
     <div id="main" role="main">
         <article class="hentry">
@@ -114,7 +116,7 @@
             <div class="entry-content">
                 <p>I’ve had a few requests for the method that I use for encrypting posts for displaying on github so I’ve decided to make a post about it. It won’t be perfect; but nothing ever is.</p>
 
-<p>I originally made this for hackthebox writeups but it could apply to anything really.</p>
+<p>I originally made this for hackthebox writeups but it could apply to anything really. So there are some slight differences between the site currently and the pictures included in the writeup since they used my hackthebox username.</p>
 
 <p>The tool I will use is called <a href="https://github.com/robinmoisson/staticrypt">staticrypt</a>.</p>
 
