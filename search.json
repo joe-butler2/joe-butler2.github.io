@@ -2,6 +2,69 @@
   
     {
 
+      "title"    : "Worker",
+      "url"      : "/hackthebox/Worker.html",
+      "tags"     : "HackTheBox, Windows box, Medium box, CVE, Azure DevOps, RoguePotato",
+      "date"     : "Aug 26, 2021 @ 22:44"
+
+    } ,
+  
+    {
+
+      "title"    : "Unbalanced",
+      "url"      : "/hackthebox/Unbalanced.html",
+      "tags"     : "HackTheBox, Linux box, Hard box, CVE, Rsync, Squid Proxy, Pi-hole, Xpath Injection",
+      "date"     : "Aug 26, 2021 @ 22:40"
+
+    } ,
+  
+    {
+
+      "title"    : "Passage",
+      "url"      : "/hackthebox/Passage.html",
+      "tags"     : "HackTheBox, Linux box, Medium box, CVE, USBCreator, DBus",
+      "date"     : "Aug 26, 2021 @ 22:47"
+
+    } ,
+  
+    {
+
+      "title"    : "OpenKeyS",
+      "url"      : "/hackthebox/OpenKeyS.html",
+      "tags"     : "HackTheBox, OpenBSD box, Medium box, CVE, S/Key Authentication",
+      "date"     : "Aug 26, 2021 @ 22:43"
+
+    } ,
+  
+    {
+
+      "title"    : "Omni",
+      "url"      : "/hackthebox/Omni.html",
+      "tags"     : "HackTheBox, Windows box, Easy box, CVE, Sirep",
+      "date"     : "Aug 26, 2021 @ 22:44"
+
+    } ,
+  
+    {
+
+      "title"    : "Compromised",
+      "url"      : "/hackthebox/Compromised.html",
+      "tags"     : "HackTheBox, Linux box, Hard box, Reverse Engineering, Backdoor",
+      "date"     : "Aug 26, 2021 @ 22:47"
+
+    } ,
+  
+    {
+
+      "title"    : "Encryption Test",
+      "url"      : "/2021/01/01/test.html",
+      "tags"     : "test, articles",
+      "date"     : "26 Aug 2021"
+
+    } ,
+  
+    {
+
       "title"    : "Encrypting Markdown",
       "url"      : "/2020/08/20/encryptingMarkdown.html",
       "tags"     : "test, article, encryption",
