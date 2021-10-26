@@ -108,8 +108,9 @@
 <li class="toc-entry toc-h1"><a href="#getting-the-flag">Getting the flag</a></li>
 </ul><h1 id="summary">
 <a class="anchor" href="#summary" aria-hidden="true"><span class="octicon octicon-link"></span></a>Summary</h1>
-<p>“Picture It” is a challenge I made for the beginner ctf <a href="https://github.com/wmgcyber/intakectf-2021-public">IntakeCTF</a>
-From a memory dump, you can use the <code class="language-plaintext highlighter-rouge">screenshot</code> volatility command to get a clipping of the screen when the memory was dumped. Using this, you can see a pastebin link in one of the window titles. THis contains passwords for different services. One of the passwords is for word documents and it just so happens that an encrypted word document can be found. After decrypting the word document more passwords are inside. Looking at more files on the system, <code class="language-plaintext highlighter-rouge">secrets.7z</code> is somewhat suspicious, using 7z2john, the dump can be cracked and the flag found inside.</p>
+<p>“Picture It” is a challenge I made for the beginner ctf <a href="https://github.com/wmgcyber/intakectf-2021-public">“IntakeCTF”</a>.</p>
+
+<p>From a memory dump, you can use the <code class="language-plaintext highlighter-rouge">screenshot</code> volatility command to get a clipping of the screen when the memory was dumped. Using this, you can see a pastebin link in one of the window titles. This contains passwords for different services. One of the passwords is for word documents and it just so happens that an encrypted word document can be found. After decrypting the word document more passwords are inside. Looking at more files on the system, <code class="language-plaintext highlighter-rouge">secrets.7z</code> is somewhat suspicious, using 7z2john, the dump can be cracked and the flag found inside.</p>
 
 <h1 id="screenshot">
 <a class="anchor" href="#screenshot" aria-hidden="true"><span class="octicon octicon-link"></span></a>Screenshot</h1>
