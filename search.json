@@ -1,10 +1,56 @@
 [
   
     {
-      "title"    : "Picture it",
+
+      "title"    : "Keep The Steam Activated - HTBxUNI 2021 Quals",
+      "url"      : "/2021/12/02/keepTheSteamActivated.html",
+      "tags"     : "CTF, Forensics, PCAP, WSMAN",
+      "date"     : "Dec 02, 2021 @ 00:01"
+
+    } ,
+  
+    {
+
+      "title"    : "Strike Back - HTBxUNI 2021 Quals",
+      "url"      : "/2021/12/01/strikeBack.html",
+      "tags"     : "CTF, Forensics, PCAP, Cobalt Strike",
+      "date"     : "Dec 01, 2021 @ 00:00"
+
+    } ,
+  
+    {
+
+      "title"    : "Object - HTBxUNI 2021 Quals",
+      "url"      : "/2021/11/29/ObjectHTB.html",
+      "tags"     : "CTF, Medium box, Active Directory, Jenkins, Bloodhound",
+      "date"     : "Nov 29, 2021 @ 00:02"
+
+    } ,
+  
+    {
+
+      "title"    : "Flustered - HTBxUNI 2021 Quals",
+      "url"      : "/2021/11/28/flusteredHTB.html",
+      "tags"     : "CTF, Easy box, GlusterFS, Jenkins, Squid Proxy, SSTI, Azurite",
+      "date"     : "Nov 28, 2021 @ 12:54"
+
+    } ,
+  
+    {
+
+      "title"    : "Intake-2021: Finance",
+      "url"      : "/2021/10/29/Finance.html",
+      "tags"     : "CTF, Forensics, Visual Basic, Deobfuscation",
+      "date"     : "Oct 29, 2021 @ 01:55"
+
+    } ,
+  
+    {
+
+      "title"    : "Intake-2021: Picture It",
       "url"      : "/2021/10/26/Picture-it.html",
-      "tags"     : "",
-      "date"     : ""
+      "tags"     : "CTF, Forensics, Cracking",
+      "date"     : "Oct 26, 2021 @ 22:51"
 
     } ,
   
@@ -77,15 +123,6 @@
       "url"      : "/2021/01/01/test.html",
       "tags"     : "test, articles",
       "date"     : "26 Aug 2021"
-
-    } ,
-  
-    {
-
-      "title"    : "Encrypting Markdown",
-      "url"      : "/2020/08/20/encryptingMarkdown.html",
-      "tags"     : "test, article, encryption",
-      "date"     : "Aug 20, 2020 @ 10:25"
 
     } ,
   
