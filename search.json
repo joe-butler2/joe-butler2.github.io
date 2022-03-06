@@ -2,6 +2,15 @@
   
     {
 
+      "title"    : "Midterm-CTF 2022: SpongeStore",
+      "url"      : "/2022/03/06/spongeStore.html",
+      "tags"     : "CTF, Medium box, Wordpress, GTFOBins, CVE, Werkzeug, tshark",
+      "date"     : "Mar 06, 2022 @ 19:00"
+
+    } ,
+  
+    {
+
       "title"    : "Keep The Steam Activated - HTBxUNI 2021 Quals",
       "url"      : "/2021/12/02/keepTheSteamActivated.html",
       "tags"     : "CTF, Forensics, PCAP, WSMAN",
